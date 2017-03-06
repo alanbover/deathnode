@@ -5,11 +5,23 @@ import (
 	"net/http"
 	"fmt"
 	"bytes"
-	//"io/ioutil"
-	//"text/template"
+	"io/ioutil"
+	"text/template"
 	"runtime"
 	"path"
 )
+
+type MesosConnection struct {
+	client		http.Client
+	masterIP	string
+}
+
+type MesosConnectionInterface interface {
+	GetMesosTasks() (*TasksResponse, error)
+	GetMesosFrameworks() (*FrameworksResponse, error)
+	GetMesosSlaves() (*SlavesResponse, error)
+	SetHostInMaintenance(hostname, ip string) error
+}
 
 type SlavesResponse struct {
 	Slaves	[]Slave 	`json:"slaves"`
@@ -48,59 +60,64 @@ type Status struct {
 	Timestamp	float64  	`json:"timestamp"`
 }
 
-type MesosConnection struct {
-	client		http.Client
-	masterIP	string
+type hostInMaintenanceRequest struct {
+	Hostname	string
+	Ip		string
 }
 
-func (c* MesosConnection) GetMesosTasks() error {
+func (c* MesosConnection) GetMesosTasks() (*TasksResponse, error) {
 
 	url := fmt.Sprintf(c.masterIP + "/master/tasks")
 
 	var tasks TasksResponse
 	mesos_get_api_call(url, &tasks)
 
-	fmt.Println(tasks)
-
-	return nil
+	return &tasks, nil
 }
 
-func (c* MesosConnection) GetMesosFrameworks() error {
+func (c* MesosConnection) GetMesosFrameworks() (*FrameworksResponse, error) {
 
 	url := fmt.Sprintf(c.masterIP + "/master/frameworks")
 
 	var frameworks FrameworksResponse
 	mesos_get_api_call(url, &frameworks)
 
-	fmt.Println(frameworks)
-
-	return nil
+	return &frameworks, nil
 }
 
-func (c* MesosConnection) GetMesosSlaves() error {
+func (c* MesosConnection) GetMesosSlaves() (*SlavesResponse, error) {
 
 	url := fmt.Sprintf(c.masterIP + "/master/slaves")
 
 	var slaves SlavesResponse
 	mesos_get_api_call(url, &slaves)
 
-	fmt.Println(slaves)
+	return &slaves, nil
+}
 
+func (c* MesosConnection) SetHostInMaintenance(hostname, ip string) error {
+	url := fmt.Sprintf(c.masterIP + "/maintenance/schedule")
+	template_path := getCurrentPath() + "/templates/maintenance.tmpl"
+
+	var payload bytes.Buffer
+	request := &hostInMaintenanceRequest{
+		Hostname: hostname,
+		Ip: ip,
+	}
+
+	parse_template(template_path,  payload, request)
+
+	mesos_post_api_call(url, payload.Bytes())
 	return nil
 }
 
-func (c* MesosConnection) SetHostInMaintenance() error {
-	//url := fmt.Sprintf(c.masterIP + "/maintenance/schedule")
+func parse_template(template_path string, doc bytes.Buffer, values interface{}) error {
 
-	//maintenance_template, err := ioutil.ReadFile(getCurrentPath() + "/templates/maintenance.tmpl")
+	maintenance_template, _ := ioutil.ReadFile(template_path)
+	tmpl, _ := template.New("template").Parse(string(maintenance_template))
+	err := tmpl.Execute(&doc, values)
+	return err
 
-	//tmpl, err := template.New("test").Parse(maintenance_template)
-
-	//var payload string
-
-	//mesos_post_api_call(url, payload)
-
-	return nil
 }
 
 func mesos_get_api_call(url string, response interface{}) error {

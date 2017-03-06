@@ -1,0 +1,9 @@
+{
+  "slaves": [
+    {
+      "id": "mesosslave1",
+      "pid": "mesosslave1PID",
+      "hostname": "mesosslave1hostname"
+    }
+  ]
+}

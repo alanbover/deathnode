@@ -1,0 +1,9 @@
+{
+  "frameworks": [
+    {
+      "id": "framework1",
+      "name": "frameworkname",
+      "active": "true"
+    }
+  ]
+}

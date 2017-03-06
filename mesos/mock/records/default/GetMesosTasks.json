@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "name": "task1",
+      "state": "active",
+      "slave_id": "slave_id",
+      "framework_id": "framework_id",
+      "statuses": [
+        {
+          "state": "RUNNING",
+          "timestamp": 123456.786543
+        }
+      ]
+    }
+  ]
+}
