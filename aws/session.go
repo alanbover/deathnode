@@ -11,20 +11,16 @@ import (
 )
 
 type sessionParameters struct {
-	accessKey	string
-	secretKey	string
-	region		string
-	iamRole		string
-	iamSession	string
+	accessKey  string
+	secretKey  string
+	region     string
+	iamRole    string
+	iamSession string
 }
 
 func newAwsSession(parameters *sessionParameters) (*session.Session, error) {
 	if parameters.region == "" {
 		return nil, errors.New("Missing aws region (required).")
-	}
-
-	if parameters.accessKey == "" || parameters.secretKey == "" && parameters.iamRole == "" {
-		return nil, errors.New("s3 configuration is incomplete. At least a role or credentials required")
 	}
 
 	sess := session.New(&aws.Config{Region: aws.String(parameters.region)})
@@ -44,7 +40,7 @@ func newAwsSession(parameters *sessionParameters) (*session.Session, error) {
 	return sess, nil
 }
 
-func assumeRoleCredentials(sess *session.Session, iamRole, iamSession string) (*credentials.Credentials) {
+func assumeRoleCredentials(sess *session.Session, iamRole, iamSession string) *credentials.Credentials {
 
 	if iamSession == "" {
 		iamSession = "default"
@@ -57,4 +53,3 @@ func assumeRoleCredentials(sess *session.Session, iamRole, iamSession string) (*
 	})
 	return creds
 }
-
