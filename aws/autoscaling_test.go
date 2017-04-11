@@ -111,4 +111,8 @@ func TestRefresh(t *testing.T) {
 		}
 	}
 
+	if autoscalingGroup.NumUndesiredInstances() != 1 {
+		t.Fatal("After refresh we should have one undesired instance")
+	}
+
 }

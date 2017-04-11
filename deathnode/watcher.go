@@ -39,6 +39,7 @@ func (y *DeathNodeWatcher) CheckIfInstancesToKill(autoscalingMonitor *aws.Autosc
 
 	autoscalingMonitor.Refresh()
 	numUndesiredMesosAgents := autoscalingMonitor.NumUndesiredInstances()
+	log.Debugf("Undesired Mesos Agents: %d", numUndesiredMesosAgents)
 
 	removedAgents := 0
 

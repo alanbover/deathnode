@@ -1,6 +1,6 @@
 {
       "AutoScalingGroupName": "some-Autoscaling-Group",
-      "DesiredCapacity": 3,
+      "DesiredCapacity": 2,
       "Instances": [{
           "AvailabilityZone": "eu-west-1c",
           "HealthStatus": "Healthy",

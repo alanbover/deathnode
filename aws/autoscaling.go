@@ -56,6 +56,8 @@ func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalin
 func (a *AutoscalingGroupMonitor) Refresh() error {
 
 	response, err := a.awsConnection.DescribeAGByName(a.autoscaling.autoscalingGroupName)
+	a.autoscaling.launchConfiguration = *response.LaunchConfigurationName
+	a.autoscaling.desiredCapacity = *response.DesiredCapacity
 
 	if err != nil {
 		return err
