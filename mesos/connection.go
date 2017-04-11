@@ -1,106 +1,121 @@
 package mesos
 
 import (
-	"encoding/json"
-	"net/http"
-	"fmt"
 	"bytes"
-	//"io/ioutil"
-	//"text/template"
-	"runtime"
-	"path"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"text/template"
 )
 
-type SlavesResponse struct {
-	Slaves	[]Slave 	`json:"slaves"`
-}
-
-type Slave struct {
-	Id		string 	`json:"id"`
-	Pid		string  `json:"pid"`
-	Hostname	string  `json:"hostname"`
-}
-
-type FrameworksResponse struct {
-	Frameworks	[]Framework 	`json:"frameworks"`
-}
-
-type Framework struct {
-	Id		string 		`json:"id"`
-	Name		string		`json:"name"`
-	Active		bool		`json:"active"`
-}
-
-type TasksResponse struct {
-	Tasks		[]Task `json:"tasks"`
-}
-
-type Task struct {
-	Name		string 		`json:"name"`
-	State 		string 		`json:"state"`
-	Slave_id	string 		`json:"slave_id"`
-	Framework_id	string 		`json:"framework_id"`
-	Statuses	[]Status	`json:"statuses"`
-}
-
-type Status struct {
-	State		string 		`json:"state"`
-	Timestamp	float64  	`json:"timestamp"`
+type MesosConnectionInterface interface {
+	getMesosTasks() (*TasksResponse, error)
+	getMesosFrameworks() (*FrameworksResponse, error)
+	getMesosSlaves() (*SlavesResponse, error)
+	setHostInMaintenance(hostname, ip string) error
 }
 
 type MesosConnection struct {
-	client		http.Client
-	masterIP	string
+	MasterUrl string
 }
 
-func (c* MesosConnection) GetMesosTasks() error {
+type SlavesResponse struct {
+	Slaves []Slave `json:"slaves"`
+}
 
-	url := fmt.Sprintf(c.masterIP + "/master/tasks")
+type Slave struct {
+	Id       string `json:"id"`
+	Pid      string `json:"pid"`
+	Hostname string `json:"hostname"`
+}
+
+type FrameworksResponse struct {
+	Frameworks []Framework `json:"frameworks"`
+}
+
+type Framework struct {
+	Id     string `json:"id"`
+	Name   string `json:"name"`
+	Active bool   `json:"active"`
+}
+
+type TasksResponse struct {
+	Tasks []Task `json:"tasks"`
+}
+
+type Task struct {
+	Name         string   `json:"name"`
+	State        string   `json:"state"`
+	Slave_id     string   `json:"slave_id"`
+	Framework_id string   `json:"framework_id"`
+	Statuses     []Status `json:"statuses"`
+}
+
+type Status struct {
+	State     string  `json:"state"`
+	Timestamp float64 `json:"timestamp"`
+}
+
+type hostInMaintenanceRequest struct {
+	Hostname string
+	Ip       string
+}
+
+func (c *MesosConnection) setHostInMaintenance(hostname, ip string) error {
+
+	url := fmt.Sprintf(c.MasterUrl + "/maintenance/schedule")
+	template_path := getCurrentPath() + "/templates/maintenance.tmpl"
+
+	var payload bytes.Buffer
+	request := &hostInMaintenanceRequest{
+		Hostname: hostname,
+		Ip:       ip,
+	}
+
+	parse_template(template_path, payload, request)
+
+	mesos_post_api_call(url, payload.Bytes())
+	return nil
+}
+
+func (c *MesosConnection) getMesosTasks() (*TasksResponse, error) {
+
+	url := fmt.Sprintf(c.MasterUrl + "/master/tasks")
 
 	var tasks TasksResponse
 	mesos_get_api_call(url, &tasks)
 
-	fmt.Println(tasks)
-
-	return nil
+	return &tasks, nil
 }
 
-func (c* MesosConnection) GetMesosFrameworks() error {
+func (c *MesosConnection) getMesosFrameworks() (*FrameworksResponse, error) {
 
-	url := fmt.Sprintf(c.masterIP + "/master/frameworks")
+	url := fmt.Sprintf(c.MasterUrl + "/master/frameworks")
 
 	var frameworks FrameworksResponse
 	mesos_get_api_call(url, &frameworks)
 
-	fmt.Println(frameworks)
-
-	return nil
+	return &frameworks, nil
 }
 
-func (c* MesosConnection) GetMesosSlaves() error {
+func (c *MesosConnection) getMesosSlaves() (*SlavesResponse, error) {
 
-	url := fmt.Sprintf(c.masterIP + "/master/slaves")
+	url := fmt.Sprintf(c.MasterUrl + "/master/slaves")
 
 	var slaves SlavesResponse
 	mesos_get_api_call(url, &slaves)
 
-	fmt.Println(slaves)
-
-	return nil
+	return &slaves, nil
 }
 
-func (c* MesosConnection) SetHostInMaintenance() error {
-	//url := fmt.Sprintf(c.masterIP + "/maintenance/schedule")
+func parse_template(template_path string, doc bytes.Buffer, values interface{}) error {
 
-	//maintenance_template, err := ioutil.ReadFile(getCurrentPath() + "/templates/maintenance.tmpl")
-
-	//tmpl, err := template.New("test").Parse(maintenance_template)
-
-	//var payload string
-
-	//mesos_post_api_call(url, payload)
-
-	return nil
+	maintenance_template, _ := ioutil.ReadFile(template_path)
+	tmpl, _ := template.New("template").Parse(string(maintenance_template))
+	err := tmpl.Execute(&doc, values)
+	return err
 }
 
 func mesos_get_api_call(url string, response interface{}) error {
@@ -108,35 +123,41 @@ func mesos_get_api_call(url string, response interface{}) error {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Print("Error preparing HTTP request: ", err)
-		return nil
+		return err
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Print("Error calling HTTP request: ", err)
-		return nil
+		return err
 	}
 
 	defer resp.Body.Close()
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		fmt.Print("Error decoding HTTP request: ", err)
+		return err
 	}
 
 	return nil
 }
 
 func mesos_post_api_call(url string, payload []byte) error {
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
+	if err != nil {
+		fmt.Print("Error preparing HTTP request: ", err)
+		return err
+	}
 
 	req.Header.Set("Content-Type", "application/json")
-
 	client := &http.Client{}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Print("Error calling HTTP request: ", err)
-		return nil
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -144,9 +165,7 @@ func mesos_post_api_call(url string, payload []byte) error {
 }
 
 func getCurrentPath() string {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		panic("No caller information")
-	}
-	return path.Dir(filename)
+
+	dirname, _ := os.Getwd()
+	return dirname
 }

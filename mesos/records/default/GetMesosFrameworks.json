@@ -1,0 +1,14 @@
+{
+  "frameworks": [
+    {
+      "id": "framework1",
+      "name": "frameworkname1",
+      "active": true
+    },
+    {
+      "id": "framework2",
+      "name": "frameworkname2",
+      "active": true
+    }
+  ]
+}
