@@ -25,6 +25,6 @@
         }],
       "LaunchConfigurationName": "LaunchConfigurationNameFoo",
       "MaxSize": 3,
-      "MinSize": 3,
+      "MinSize": 1,
       "NewInstancesProtectedFromScaleIn": false
 }

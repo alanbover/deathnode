@@ -40,6 +40,7 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 
 	n.instanceRemoveRequests = append(n.instanceRemoveRequests, instanceRemoveRequest)
 	instance.RemoveFromAutoscalingGroup()
+	log.Debugf("Instance %s removed from ASG", instanceRemoveRequest.instace.GetIP())
 
 	agentInfo, _ := n.mesosMonitor.GetMesosSlaveByIp(instance.GetIP())
 	n.mesosMonitor.SetMesosSlaveInMaintenance(agentInfo.Hostname, instance.GetIP())
@@ -50,15 +51,15 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 func (n *Notebook) KillAttempt() error {
 
 	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
-		log.Debugf("Checking if instance %s should be removed from ASG", instanceRemoveRequest.instace.GetIP())
+		log.Debugf("Checking if instance %s can be killed", instanceRemoveRequest.instace.GetIP())
 		hasFrameworks, err := n.mesosMonitor.DoesSlaveHasFrameworks(
 			instanceRemoveRequest.instace.GetIP(), n.protectedFrameworks)
 		if err != nil {
 			log.Errorf("Instance %s can't be found in Mesos: ", instanceRemoveRequest.instace.GetIP())
 		}
 		if !hasFrameworks {
-			log.Infof("Removing instance %s from autoscaling group", instanceRemoveRequest.instace.GetIP())
-			instanceRemoveRequest.instace.RemoveFromAutoscalingGroup()
+			log.Infof("Destroying instance %s", instanceRemoveRequest.instace.GetIP())
+			instanceRemoveRequest.instace.Destroy()
 		}
 	}
 

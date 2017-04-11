@@ -12,15 +12,20 @@ import (
 
 type ArrayFlags []string
 
-var accessKey, secretKey, region, iamRole, iamSession, mesosUrl string
-var autoscalingGroupName, registeredFramework, constraintsType, recommenderType string
+var accessKey, secretKey, region, iamRole, iamSession, mesosUrl, constraintsType, recommenderType string
 var autoscalingGroupNames, protectedFrameworks ArrayFlags
 var polling_seconds int
+var debug bool
 
 func main() {
 
 	initFlags()
 	enforceFlags()
+
+	log.SetLevel(log.InfoLevel)
+	if debug {
+		log.SetLevel(log.DebugLevel)
+	}
 
 	aws_conn, err := aws.NewConnection(accessKey, secretKey, region, iamRole, iamSession)
 	if err != nil {
@@ -57,10 +62,11 @@ func initFlags() {
 	flag.StringVar(&iamRole, "iamRole", "", "help message for flagname")
 	flag.StringVar(&iamSession, "iamSession", "", "help message for flagname")
 
+	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 	flag.StringVar(&mesosUrl, "mesosUrl", "", "The URL for Mesos master")
 
 	flag.Var(&autoscalingGroupNames, "autoscalingGroupName", "The autoscaling group name to monitor")
-	flag.Var(&protectedFrameworks, "registeredFramework", "The mesos frameworks to wait for kill the node")
+	flag.Var(&protectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node")
 
 	// Move constraints to array, so we apply multiple
 	flag.StringVar(&constraintsType, "constraintsType", "noContraint", "The constrainst implementation to use")
@@ -78,12 +84,12 @@ func enforceFlags() {
 		log.Fatal("mesosUrl flag is required")
 	}
 
-	if len(autoscalingGroupName) < 1 {
+	if len(autoscalingGroupNames) < 1 {
 		flag.Usage()
 		log.Fatal("at least one autoscalingGroupName flag is required")
 	}
 
-	if len(registeredFramework) < 1 {
+	if len(protectedFrameworks) < 1 {
 		flag.Usage()
 		log.Fatal("at least one registeredFramework flag is required")
 	}

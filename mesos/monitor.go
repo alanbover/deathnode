@@ -63,7 +63,7 @@ func (m *MesosMonitor) DoesSlaveHasFrameworks(ipAddress string, frameworks []str
 	}
 	slaveTasks := []Task{}
 	for _, task := range m.mesosCache.tasks {
-		if task.Slave_id == slave.Id {
+		if task.Slave_id == slave.Id && task.State == "TASK_RUNNING" {
 			slaveTasks = append(slaveTasks, task)
 		}
 	}
@@ -72,7 +72,7 @@ func (m *MesosMonitor) DoesSlaveHasFrameworks(ipAddress string, frameworks []str
 	for _, framework := range frameworks {
 		for _, frameworkCache := range m.mesosCache.frameworks {
 			if frameworkCache.Name == framework {
-				frameworkIds = append(frameworkIds, frameworkCache.Name)
+				frameworkIds = append(frameworkIds, frameworkCache.Id)
 			}
 		}
 	}
