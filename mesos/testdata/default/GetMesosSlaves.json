@@ -1,0 +1,19 @@
+{
+  "slaves": [
+    {
+      "id": "mesosslave1",
+      "pid": "slave(1)@10.0.0.2:5051",
+      "hostname": "mesosslave1hostname"
+    },
+    {
+      "id": "mesosslave2",
+      "pid": "slave(1)@10.0.0.3:5051",
+      "hostname": "mesosslave2hostname"
+    },
+    {
+      "id": "mesosslave3",
+      "pid": "slave(1)@10.0.0.4:5051",
+      "hostname": "mesosslave3hostname"
+    }
+  ]
+}

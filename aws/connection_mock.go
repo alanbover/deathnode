@@ -3,18 +3,16 @@ package aws
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-)
-
-import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 )
 
 type AwsConnectionMock struct {
 	Records  map[string]*[]string
-	Requests map[string]*[]string
+	Requests map[string][][]string
 }
 
 func (c *AwsConnectionMock) DescribeInstanceById(instanceId string) (*ec2.Instance, error) {
@@ -32,20 +30,20 @@ func (c *AwsConnectionMock) DescribeAGByName(autoscalingGroupName string) (*auto
 func (c *AwsConnectionMock) DetachInstance(autoscalingGroupName, instanceId string) error {
 
 	if c.Requests == nil {
-		c.Requests = map[string]*[]string{}
+		c.Requests = map[string][][]string{}
 	}
 
-	c.Requests["DetachInstance"] = &[]string{autoscalingGroupName, instanceId}
+	c.Requests["DetachInstance"] = append(c.Requests["DetachInstance"], []string{autoscalingGroupName, instanceId})
 	return nil
 }
 
 func (c *AwsConnectionMock) TerminateInstance(instanceId string) error {
 
 	if c.Requests == nil {
-		c.Requests = map[string]*[]string{}
+		c.Requests = map[string][][]string{}
 	}
 
-	c.Requests["TerminateInstance"] = &[]string{instanceId}
+	c.Requests["TerminateInstance"] = append(c.Requests["TerminateInstance"], []string{instanceId})
 	return nil
 }
 
@@ -64,7 +62,7 @@ func (c *AwsConnectionMock) replay(mockResponse interface{}, templateFileName st
 
 	currentRecord := (*records)[0]
 
-	file, err := ioutil.ReadFile(getCurrentPath() + "/records" + "/" + currentRecord + "/" + templateFileName + ".json")
+	file, err := ioutil.ReadFile(getCurrentPath() + "/testdata" + "/" + currentRecord + "/" + templateFileName + ".json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
 		os.Exit(1)
@@ -82,6 +80,6 @@ func (c *AwsConnectionMock) replay(mockResponse interface{}, templateFileName st
 
 func getCurrentPath() string {
 
-	dirname, _ := os.Getwd()
-	return dirname
+	gopath := os.Getenv("GOPATH")
+	return filepath.Join(gopath, "src/github.com/alanbover/deathnode/aws")
 }

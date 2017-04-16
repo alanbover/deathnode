@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"text/template"
 )
 
@@ -166,6 +167,6 @@ func mesos_post_api_call(url string, payload []byte) error {
 
 func getCurrentPath() string {
 
-	dirname, _ := os.Getwd()
-	return dirname
+	gopath := os.Getenv("GOPATH")
+	return filepath.Join(gopath, "src/github.com/alanbover/deathnode/mesos")
 }

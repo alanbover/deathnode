@@ -33,25 +33,31 @@ func main() {
 	}
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(aws_conn, autoscalingGroupNames)
 
-	mesosMonitor := mesos.NewMesosMonitor(
-		&mesos.MesosConnection{
-			MasterUrl: mesosUrl,
-		})
+	mesosConn := &mesos.MesosConnection{
+		MasterUrl: mesosUrl,
+	}
+	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 
-	notebook := deathnode.NewNotebook(mesosMonitor, protectedFrameworks)
+	notebook := deathnode.NewNotebook(mesosMonitor)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(polling_seconds))
 	for {
-		mesosMonitor.Refresh()
-
-		for _, autoscalingGroup := range *autoscalingGroups {
-			go deathNodeWatcher.CheckIfInstancesToKill(autoscalingGroup)
-		}
-
-		notebook.KillAttempt()
+		go Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
 		<-ticker.C
 	}
+}
+
+func Run(mesosMonitor *mesos.MesosMonitor, autoscalingGroups *aws.AutoscalingGroups,
+	deathNodeWatcher *deathnode.DeathNodeWatcher, notebook *deathnode.Notebook) {
+
+	mesosMonitor.Refresh()
+
+	for _, autoscalingGroup := range *autoscalingGroups {
+		deathNodeWatcher.CheckIfInstancesToKill(autoscalingGroup)
+	}
+
+	notebook.KillAttempt()
 }
 
 func initFlags() {

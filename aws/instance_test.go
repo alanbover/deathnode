@@ -36,7 +36,7 @@ func TestTerminateInstance(t *testing.T) {
 
 	callArguments := conn.Requests["TerminateInstance"]
 
-	if (*callArguments)[0] != "i-249b35ae" {
+	if (callArguments)[0][0] != "i-249b35ae" {
 		t.Fatal("Incorrect parameters for TerminateInstance")
 	}
 }

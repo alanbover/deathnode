@@ -29,25 +29,12 @@ func NewAutoscalingGroups(conn AwsConnectionInterface, autoscalingGroupNameList 
 
 func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalingGroupName string) (*AutoscalingGroupMonitor, error) {
 
-	response, err := awsConnection.DescribeAGByName(autoscalingGroupName)
-
-	if err != nil {
-		return &AutoscalingGroupMonitor{}, err
-	}
-
-	instanceMonitors := make(map[string]*InstanceMonitor)
-
-	for _, instance := range response.Instances {
-		instanceMonitor, _ := NewInstanceMonitor(awsConnection, autoscalingGroupName, *instance.LaunchConfigurationName, *instance.InstanceId)
-		instanceMonitors[*instance.InstanceId] = instanceMonitor
-	}
-
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
 			autoscalingGroupName: autoscalingGroupName,
-			launchConfiguration:  *response.LaunchConfigurationName,
-			desiredCapacity:      *response.DesiredCapacity,
-			instanceMonitors:     instanceMonitors,
+			launchConfiguration:  "",
+			desiredCapacity:      0,
+			instanceMonitors:     map[string]*InstanceMonitor{},
 		},
 		awsConnection: awsConnection,
 	}, nil
@@ -118,4 +105,9 @@ func (a *AutoscalingGroupMonitor) hasInstance(instanceId string) bool {
 	}
 
 	return false
+}
+
+func (a *AutoscalingGroupMonitor) RemoveInstance(instanceMonitor *InstanceMonitor) {
+
+	delete(a.autoscaling.instanceMonitors, instanceMonitor.instance.instanceId)
 }

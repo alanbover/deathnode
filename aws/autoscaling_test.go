@@ -14,17 +14,18 @@ func TestNewAutoscalingGroupMonitor(t *testing.T) {
 	}
 
 	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
+	monitor.Refresh()
 
 	if monitor == nil {
 		t.Fatal("TestNewAutoscalingGroupMonitor return nil")
 	}
 
 	if (len(monitor.autoscaling.instanceMonitors)) != 3 {
-		t.Fatal("Incorrect number of instances in ASG")
+		t.Fatal("Incorrect number of instances in ASG. Found: ", len(monitor.autoscaling.instanceMonitors))
 	}
 
 	if monitor.NumUndesiredInstances() > 0 {
-		t.Fatal("Incorrect number of undesired ASG instances")
+		t.Fatal("Incorrect number of undesired ASG instances. Found: ", monitor.NumUndesiredInstances())
 	}
 }
 
@@ -38,9 +39,10 @@ func TestNumUndesiredASGinstances(t *testing.T) {
 	}
 
 	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
+	monitor.Refresh()
 
 	if monitor.NumUndesiredInstances() != 1 {
-		t.Fatal("Incorrect number of undesired ASG instances")
+		t.Fatal("Incorrect number of undesired ASG instances. Found: ", monitor.NumUndesiredInstances())
 	}
 }
 
@@ -55,6 +57,7 @@ func TestNewAutoscalingGroups(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	(*autoscalingGroups)[0].Refresh()
 
 	if (*autoscalingGroups)[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
 		t.Fatal("Error creating AutoscalingGroups")
@@ -72,13 +75,14 @@ func TestRemoveInstanceFromAutoscalingGroup(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	(*autoscalingGroups)[0].Refresh()
 
 	instanceMonitors := (*autoscalingGroups)[0].autoscaling.instanceMonitors
 	instanceMonitors["i-34719eb8"].RemoveFromAutoscalingGroup()
 
 	callArguments := awsConn.Requests["DetachInstance"]
 
-	if (*callArguments)[0] != "some-Autoscaling-Group" || (*callArguments)[1] != "i-34719eb8" {
+	if (callArguments)[0][0] != "some-Autoscaling-Group" || (callArguments)[0][1] != "i-34719eb8" {
 		t.Fatal("Incorrect parameters when calling RemoveFromAutoscalingGroup")
 	}
 }
@@ -94,6 +98,7 @@ func TestRefresh(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	(*autoscalingGroups)[0].Refresh()
 
 	autoscalingGroup := (*autoscalingGroups)[0]
 	autoscalingGroup.Refresh()
