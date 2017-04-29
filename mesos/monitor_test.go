@@ -14,11 +14,12 @@ func TestGetMesosSlaveIdByIp(t *testing.T) {
 		},
 	}
 
-	mesosMonitor := NewMesosMonitor(mesosConn)
+	protectedFrameworks := []string{"framework1"}
+	mesosMonitor := NewMesosMonitor(mesosConn, protectedFrameworks)
 	mesosMonitor.Refresh()
 	mesosAgentId, _ := mesosMonitor.GetMesosSlaveByIp("10.0.0.2")
 
-	if mesosAgentId.Id != "mesosslave2" {
+	if mesosAgentId.Id != "mesosslave1" {
 		t.Fatal("Incorrect Mesos slave Id")
 	}
 }

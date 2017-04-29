@@ -9,6 +9,11 @@
       "id": "framework2",
       "name": "frameworkname2",
       "active": true
+    },
+    {
+      "id": "framework3",
+      "name": "frameworkname2",
+      "active": true
     }
   ]
 }

@@ -1,0 +1,40 @@
+{
+  "tasks": [
+    {
+      "name": "task1",
+      "state": "TASK_RUNNING",
+      "slave_id": "mesosslave1",
+      "framework_id": "framework1",
+      "statuses": [
+        {
+          "state": "TASK_RUNNING",
+          "timestamp": 123456.786543
+        }
+      ]
+    },
+    {
+      "name": "task2",
+      "state": "TASK_RUNNING",
+      "slave_id": "mesosslave2",
+      "framework_id": "framework1",
+      "statuses": [
+        {
+          "state": "TASK_RUNNING",
+          "timestamp": 123456.786543
+        }
+      ]
+    },
+    {
+      "name": "task3",
+      "state": "TASK_RUNNING",
+      "slave_id": "mesosslave3",
+      "framework_id": "framework1",
+      "statuses": [
+        {
+          "state": "TASK_RUNNING",
+          "timestamp": 123456.786543
+        }
+      ]
+    }
+  ]
+}

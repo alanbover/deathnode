@@ -51,7 +51,7 @@ func (c *MesosConnectionMock) replay(mockResponse interface{}, templateFileName 
 
 	currentRecord := (*records)[0]
 
-	file, err := ioutil.ReadFile(getCurrentPath() + "/records" + "/" + currentRecord + "/" + templateFileName + ".json")
+	file, err := ioutil.ReadFile(getCurrentPath() + "/testdata" + "/" + currentRecord + "/" + templateFileName + ".json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
 		os.Exit(1)

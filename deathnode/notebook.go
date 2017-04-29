@@ -11,21 +11,19 @@ import (
 )
 
 type instanceRemoveRequest struct {
-	instace *aws.InstanceMonitor
-	time    time.Time
+	instance *aws.InstanceMonitor
+	time     time.Time
 }
 
 type Notebook struct {
-	protectedFrameworks    []string
 	mesosMonitor           *mesos.MesosMonitor
-	instanceRemoveRequests []*instanceRemoveRequest
+	instanceRemoveRequests map[string]*instanceRemoveRequest
 }
 
-func NewNotebook(mesosMonitor *mesos.MesosMonitor, protectedFrameworks []string) *Notebook {
+func NewNotebook(mesosMonitor *mesos.MesosMonitor) *Notebook {
 	return &Notebook{
-		protectedFrameworks:    protectedFrameworks,
 		mesosMonitor:           mesosMonitor,
-		instanceRemoveRequests: []*instanceRemoveRequest{},
+		instanceRemoveRequests: map[string]*instanceRemoveRequest{},
 	}
 }
 
@@ -34,13 +32,14 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 	log.Infof("Requesting to kill instance %s", instance.GetIP())
 
 	instanceRemoveRequest := &instanceRemoveRequest{
-		instace: instance,
-		time:    time.Now(),
+		instance: instance,
+		time:     time.Now(),
 	}
 
-	n.instanceRemoveRequests = append(n.instanceRemoveRequests, instanceRemoveRequest)
+	n.instanceRemoveRequests[instance.GetIP()] = instanceRemoveRequest
+
 	instance.RemoveFromAutoscalingGroup()
-	log.Debugf("Instance %s removed from ASG", instanceRemoveRequest.instace.GetIP())
+	log.Debugf("Instance %s removed from ASG", instance.GetIP())
 
 	agentInfo, _ := n.mesosMonitor.GetMesosSlaveByIp(instance.GetIP())
 	n.mesosMonitor.SetMesosSlaveInMaintenance(agentInfo.Hostname, instance.GetIP())
@@ -51,15 +50,15 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 func (n *Notebook) KillAttempt() error {
 
 	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
-		log.Debugf("Checking if instance %s can be killed", instanceRemoveRequest.instace.GetIP())
-		hasFrameworks, err := n.mesosMonitor.DoesSlaveHasFrameworks(
-			instanceRemoveRequest.instace.GetIP(), n.protectedFrameworks)
+		log.Debugf("Checking if instance %s can be killed", instanceRemoveRequest.instance.GetIP())
+		hasFrameworks, err := n.mesosMonitor.DoesSlaveHasFrameworks(instanceRemoveRequest.instance.GetIP())
 		if err != nil {
-			log.Errorf("Instance %s can't be found in Mesos: ", instanceRemoveRequest.instace.GetIP())
+			log.Errorf("Instance %s can't be found in Mesos: ", instanceRemoveRequest.instance.GetIP())
 		}
 		if !hasFrameworks {
-			log.Infof("Destroying instance %s", instanceRemoveRequest.instace.GetIP())
-			instanceRemoveRequest.instace.Destroy()
+			log.Infof("Destroying instance %s", instanceRemoveRequest.instance.GetIP())
+			instanceRemoveRequest.instance.Destroy()
+			delete(n.instanceRemoveRequests, instanceRemoveRequest.instance.GetIP())
 		}
 	}
 

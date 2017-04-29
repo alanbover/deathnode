@@ -47,6 +47,7 @@ func (y *DeathNodeWatcher) CheckIfInstancesToKill(autoscalingMonitor *aws.Autosc
 		allowedAgentsToKill := y.constraints.filter(autoscalingMonitor)
 		bestAgentToKill := y.recommender.find(allowedAgentsToKill)
 		y.notebook.write(bestAgentToKill)
+		autoscalingMonitor.RemoveInstance(bestAgentToKill)
 		removedAgents += 1
 	}
 
