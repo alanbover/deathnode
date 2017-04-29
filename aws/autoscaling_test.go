@@ -27,6 +27,10 @@ func TestNewAutoscalingGroupMonitor(t *testing.T) {
 	if monitor.NumUndesiredInstances() > 0 {
 		t.Fatal("Incorrect number of undesired ASG instances. Found: ", monitor.NumUndesiredInstances())
 	}
+
+	if awsConn.Requests["SetASGInstanceProtection"] != nil {
+		t.Fatal("Method SetASGInstanceProtection should have not been called")
+	}
 }
 
 func TestNumUndesiredASGinstances(t *testing.T) {
@@ -119,5 +123,35 @@ func TestRefresh(t *testing.T) {
 	if autoscalingGroup.NumUndesiredInstances() != 1 {
 		t.Fatal("After refresh we should have one undesired instance")
 	}
+}
 
+func TestSetInstanceProtection(t *testing.T) {
+
+	awsConn := &AwsConnectionMock{
+		Records: map[string]*[]string{
+			"DescribeInstanceById": &[]string{"default", "default", "default"},
+			"DescribeAGByName":     &[]string{"instance_profile_disabled"},
+		},
+	}
+
+	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
+	monitor.Refresh()
+
+	callArguments := awsConn.Requests["SetASGInstanceProtection"]
+
+	if callArguments == nil {
+		t.Fatal("Method SetASGInstanceProtection should have been called")
+	}
+
+	if len(callArguments) < 1 {
+		t.Fatal("Method SetASGInstanceProtection called with not enought arguments")
+	}
+
+	if callArguments[0][0] != "some-Autoscaling-Group" {
+		t.Fatal("Method SetASGInstanceProtection called with incorrect autoscaling group")
+	}
+
+	if callArguments[0][1] != "i-34719eb8" {
+		t.Fatal("Method SetASGInstanceProtection called with incorrect instanceId")
+	}
 }

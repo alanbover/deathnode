@@ -47,6 +47,21 @@ func (c *AwsConnectionMock) TerminateInstance(instanceId string) error {
 	return nil
 }
 
+func (c *AwsConnectionMock) SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
+
+	if c.Requests == nil {
+		c.Requests = map[string][][]string{}
+	}
+
+	input_values := []string{*autoscalingGroupName}
+	for _, instanceId := range instanceIds {
+		input_values = append(input_values, *instanceId)
+	}
+
+	c.Requests["SetASGInstanceProtection"] = append(c.Requests["SetASGInstanceProtection"], input_values)
+	return nil
+}
+
 func (c *AwsConnectionMock) replay(mockResponse interface{}, templateFileName string) (interface{}, error) {
 
 	records, ok := c.Records[templateFileName]

@@ -17,6 +17,7 @@ type AwsConnectionInterface interface {
 	DescribeAGByName(autoscalingGroupName string) (*autoscaling.Group, error)
 	DetachInstance(autoscalingGroupName string, instanceId string) error
 	TerminateInstance(instanceId string) error
+	SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error
 }
 
 func NewConnection(accessKey, secretKey, region, iamRole, iamSession string) (*AwsConnection, error) {
@@ -101,6 +102,30 @@ func (c *AwsConnection) TerminateInstance(instanceId string) error {
 	}
 
 	_, err := c.ec2.TerminateInstances(terminateInstancesInput)
+
+	return err
+}
+
+func (c *AwsConnection) SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
+
+	instancesProtectedFromScaleIn := true
+	updateAutoScalingGroupInput := &autoscaling.UpdateAutoScalingGroupInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		NewInstancesProtectedFromScaleIn: &instancesProtectedFromScaleIn,
+	}
+
+	_, err := c.autoscaling.UpdateAutoScalingGroup(updateAutoScalingGroupInput)
+
+	if err != nil {
+		return err
+	}
+
+	setInstanceProtectionInput := &autoscaling.SetInstanceProtectionInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		InstanceIds: instanceIds,
+	}
+
+	_, err = c.autoscaling.SetInstanceProtection(setInstanceProtectionInput)
 
 	return err
 }
