@@ -43,12 +43,25 @@ func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalin
 func (a *AutoscalingGroupMonitor) Refresh() error {
 
 	response, err := a.awsConnection.DescribeAGByName(a.autoscaling.autoscalingGroupName)
-	a.autoscaling.launchConfiguration = *response.LaunchConfigurationName
-	a.autoscaling.desiredCapacity = *response.DesiredCapacity
-
 	if err != nil {
 		return err
 	}
+
+	if !*response.NewInstancesProtectedFromScaleIn {
+		instancesToProtect := []*string{}
+
+		for _, instance := range response.Instances {
+				instancesToProtect = append(instancesToProtect, instance.InstanceId)
+		}
+
+		err := a.awsConnection.SetASGInstanceProtection(response.AutoScalingGroupName, instancesToProtect)
+		if err != nil {
+			return err
+		}
+	}
+
+	a.autoscaling.launchConfiguration = *response.LaunchConfigurationName
+	a.autoscaling.desiredCapacity = *response.DesiredCapacity
 
 	for _, instance := range response.Instances {
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
