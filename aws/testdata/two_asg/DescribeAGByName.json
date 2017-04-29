@@ -28,5 +28,35 @@
         "MaxSize": 3,
         "MinSize": 1,
         "NewInstancesProtectedFromScaleIn": true
+  },
+  {
+    "AutoScalingGroupName": "some-Autoscaling-Group2",
+    "DesiredCapacity": 3,
+    "Instances": [{
+      "AvailabilityZone": "eu-west-1c",
+      "HealthStatus": "Healthy",
+      "InstanceId": "i-34719eb8",
+      "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+      "LifecycleState": "InService",
+      "ProtectedFromScaleIn": true
+    },{
+      "AvailabilityZone": "eu-west-1b",
+      "HealthStatus": "Healthy",
+      "InstanceId": "i-446a73cf",
+      "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+      "LifecycleState": "InService",
+      "ProtectedFromScaleIn": true
+    },{
+      "AvailabilityZone": "eu-west-1a",
+      "HealthStatus": "Healthy",
+      "InstanceId": "i-ab7ca923",
+      "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+      "LifecycleState": "InService",
+      "ProtectedFromScaleIn": true
+    }],
+    "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+    "MaxSize": 3,
+    "MinSize": 1,
+    "NewInstancesProtectedFromScaleIn": true
   }
 ]

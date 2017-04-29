@@ -37,7 +37,6 @@ func NewDeathNodeWatcher(notebook *Notebook, mesosMonitor *mesos.MesosMonitor, c
 
 func (y *DeathNodeWatcher) CheckIfInstancesToKill(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
 
-	autoscalingMonitor.Refresh()
 	numUndesiredMesosAgents := autoscalingMonitor.NumUndesiredInstances()
 	log.Debugf("Undesired Mesos Agents: %d", numUndesiredMesosAgents)
 
@@ -46,7 +45,12 @@ func (y *DeathNodeWatcher) CheckIfInstancesToKill(autoscalingMonitor *aws.Autosc
 	for removedAgents < numUndesiredMesosAgents {
 		allowedAgentsToKill := y.constraints.filter(autoscalingMonitor)
 		bestAgentToKill := y.recommender.find(allowedAgentsToKill)
-		y.notebook.write(bestAgentToKill)
+		err := y.notebook.write(bestAgentToKill)
+		if err != nil {
+			log.Error(err)
+			break
+		}
+
 		autoscalingMonitor.RemoveInstance(bestAgentToKill)
 		removedAgents += 1
 	}

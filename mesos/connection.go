@@ -4,18 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
-	"text/template"
 )
 
 type MesosConnectionInterface interface {
 	getMesosTasks() (*TasksResponse, error)
 	getMesosFrameworks() (*FrameworksResponse, error)
 	getMesosSlaves() (*SlavesResponse, error)
-	setHostInMaintenance(hostname, ip string) error
+	setHostsInMaintenance(map[string]string) error
 }
 
 type MesosConnection struct {
@@ -59,26 +57,39 @@ type Status struct {
 	Timestamp float64 `json:"timestamp"`
 }
 
-type hostInMaintenanceRequest struct {
-	Hostname string
-	Ip       string
+type MaintenanceRequest struct {
+	Windows     []MaintenanceWindow  `json:"windows"`
 }
 
-func (c *MesosConnection) setHostInMaintenance(hostname, ip string) error {
+type MaintenanceWindow struct {
+	MachinesIds    []MaintenanceMachinesId 	`json:"machine_ids"`
+	Unavailability MaintenanceUnavailability        `json:"unavailability"`
+}
+
+type MaintenanceMachinesId struct {
+	Hostname 	string	`json:"hostname"`
+	Ip	 	string	`json:"ip"`
+}
+
+type MaintenanceUnavailability struct {
+	Start MaintenanceStart `json:"start"`
+}
+
+type MaintenanceStart struct {
+	Nanoseconds int32	`json:"nanoseconds"`
+}
+
+func (c *MesosConnection) setHostsInMaintenance(hosts map[string]string) error {
 
 	url := fmt.Sprintf(c.MasterUrl + "/maintenance/schedule")
-	template_path := getCurrentPath() + "/templates/maintenance.tmpl"
 
-	var payload bytes.Buffer
-	request := &hostInMaintenanceRequest{
-		Hostname: hostname,
-		Ip:       ip,
+	payload, err := generate_template(hosts)
+	if err != nil {
+		return err
 	}
 
-	parse_template(template_path, payload, request)
-
-	mesos_post_api_call(url, payload.Bytes())
-	return nil
+	err = mesos_post_api_call(url, payload)
+	return err
 }
 
 func (c *MesosConnection) getMesosTasks() (*TasksResponse, error) {
@@ -111,12 +122,36 @@ func (c *MesosConnection) getMesosSlaves() (*SlavesResponse, error) {
 	return &slaves, nil
 }
 
-func parse_template(template_path string, doc bytes.Buffer, values interface{}) error {
+func generate_template(hosts map[string]string) ([]byte, error) {
 
-	maintenance_template, _ := ioutil.ReadFile(template_path)
-	tmpl, _ := template.New("template").Parse(string(maintenance_template))
-	err := tmpl.Execute(&doc, values)
-	return err
+	maintenanceMachinesIds := []MaintenanceMachinesId{}
+	for host, _ := range hosts {
+		maintenanceMachinesId := MaintenanceMachinesId{
+			Hostname: host,
+			Ip: hosts[host],
+		}
+		maintenanceMachinesIds = append(maintenanceMachinesIds, maintenanceMachinesId)
+	}
+
+	maintenanceWindow := MaintenanceWindow{
+		MachinesIds: maintenanceMachinesIds,
+		Unavailability: MaintenanceUnavailability{
+			MaintenanceStart{
+				Nanoseconds: 1,
+			},
+		},
+	}
+
+	maintenanceRequest := MaintenanceRequest{
+		Windows: []MaintenanceWindow{maintenanceWindow},
+	}
+
+	template, err := json.Marshal(maintenanceRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return template, nil
 }
 
 func mesos_get_api_call(url string, response interface{}) error {

@@ -13,8 +13,10 @@ func TestNewAutoscalingGroupMonitor(t *testing.T) {
 		},
 	}
 
-	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
-	monitor.Refresh()
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
+	monitor := autoscalingGroups.GetMonitors()[0]
 
 	if monitor == nil {
 		t.Fatal("TestNewAutoscalingGroupMonitor return nil")
@@ -42,8 +44,10 @@ func TestNumUndesiredASGinstances(t *testing.T) {
 		},
 	}
 
-	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
-	monitor.Refresh()
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
+	monitor := autoscalingGroups.GetMonitors()[0]
 
 	if monitor.NumUndesiredInstances() != 1 {
 		t.Fatal("Incorrect number of undesired ASG instances. Found: ", monitor.NumUndesiredInstances())
@@ -61,9 +65,9 @@ func TestNewAutoscalingGroups(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
-	(*autoscalingGroups)[0].Refresh()
+	autoscalingGroups.Refresh()
 
-	if (*autoscalingGroups)[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
+	if (autoscalingGroups.GetMonitors())[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
 		t.Fatal("Error creating AutoscalingGroups")
 	}
 }
@@ -79,9 +83,9 @@ func TestRemoveInstanceFromAutoscalingGroup(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
-	(*autoscalingGroups)[0].Refresh()
+	autoscalingGroups.Refresh()
 
-	instanceMonitors := (*autoscalingGroups)[0].autoscaling.instanceMonitors
+	instanceMonitors := (autoscalingGroups.GetMonitors())[0].autoscaling.instanceMonitors
 	instanceMonitors["i-34719eb8"].RemoveFromAutoscalingGroup()
 
 	callArguments := awsConn.Requests["DetachInstance"]
@@ -102,10 +106,10 @@ func TestRefresh(t *testing.T) {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
-	(*autoscalingGroups)[0].Refresh()
+	autoscalingGroups.Refresh()
 
-	autoscalingGroup := (*autoscalingGroups)[0]
-	autoscalingGroup.Refresh()
+	autoscalingGroup := (autoscalingGroups.GetMonitors())[0]
+	autoscalingGroups.Refresh()
 
 	if len(autoscalingGroup.autoscaling.instanceMonitors) != 3 {
 		t.Fatal("Incorrect number of elements after refresh()")
@@ -134,8 +138,9 @@ func TestSetInstanceProtection(t *testing.T) {
 		},
 	}
 
-	monitor, _ := NewAutoscalingGroupMonitor(awsConn, "some-Autoscaling-Group")
-	monitor.Refresh()
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
 
 	callArguments := awsConn.Requests["SetASGInstanceProtection"]
 
@@ -153,5 +158,61 @@ func TestSetInstanceProtection(t *testing.T) {
 
 	if callArguments[0][1] != "i-34719eb8" {
 		t.Fatal("Method SetASGInstanceProtection called with incorrect instanceId")
+	}
+}
+
+func TestTwoAutoscalingMonitors(t *testing.T) {
+
+	awsConn := &AwsConnectionMock{
+		Records: map[string]*[]string{
+			"DescribeInstanceById": &[]string{
+				"default", "default", "default",
+				"default", "default", "default",
+			},
+			"DescribeAGByName":     &[]string{"default", "two_asg"},
+		},
+	}
+
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
+	autoscalingGroups.Refresh()
+	monitors := autoscalingGroups.GetMonitors()
+
+	if len(monitors) != 2 {
+		t.Fatal("Incorrect number autoscalingGroups")
+	}
+
+	if monitors[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
+		t.Fatal("Incorrect autoscaling group name")
+	}
+
+	if monitors[1].autoscaling.autoscalingGroupName != "some-Autoscaling-Group2" {
+		t.Fatal("Incorrect autoscaling group name")
+	}
+}
+
+func TestRemoveAutoscalingGroup(t *testing.T) {
+
+	awsConn := &AwsConnectionMock{
+		Records: map[string]*[]string{
+			"DescribeInstanceById": &[]string{
+				"default", "default", "default",
+				"default", "default", "default",
+				"default", "default", "default",
+			},
+			"DescribeAGByName":     &[]string{"default", "two_asg", "default"},
+		},
+	}
+
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
+	autoscalingGroups.Refresh()
+	autoscalingGroups.Refresh()
+	monitors := autoscalingGroups.GetMonitors()
+
+	if len(monitors) != 1 {
+		t.Fatal("Incorrect number autoscalingGroups")
 	}
 }

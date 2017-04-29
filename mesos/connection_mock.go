@@ -27,12 +27,18 @@ func (c *MesosConnectionMock) getMesosSlaves() (*SlavesResponse, error) {
 	return mockResponse.(*SlavesResponse), nil
 }
 
-func (c *MesosConnectionMock) setHostInMaintenance(hostname, ip string) error {
+func (c *MesosConnectionMock) setHostsInMaintenance(hosts map[string]string) error {
 	if c.Requests == nil {
 		c.Requests = map[string]*[]string{}
 	}
 
-	c.Requests["SetHostInMaintenance"] = &[]string{hostname, ip}
+	hostsCallArguments := []string{}
+	for _, host := range hosts {
+		hostsCallArguments = append(hostsCallArguments, host)
+		hostsCallArguments = append(hostsCallArguments, hosts[host])
+	}
+
+	c.Requests["SetHostInMaintenance"] = &hostsCallArguments
 	return nil
 }
 

@@ -1,30 +1,32 @@
-{
-      "AutoScalingGroupName": "some-Autoscaling-Group",
-      "DesiredCapacity": 1,
-      "Instances": [{
-          "AvailabilityZone": "eu-west-1c",
-          "HealthStatus": "Healthy",
-          "InstanceId": "i-34719eb8",
-          "LaunchConfigurationName": "LaunchConfigurationNameFoo",
-          "LifecycleState": "InService",
-          "ProtectedFromScaleIn": false
-        },{
-          "AvailabilityZone": "eu-west-1b",
-          "HealthStatus": "Healthy",
-          "InstanceId": "i-446a73cf",
-          "LaunchConfigurationName": "LaunchConfigurationNameFoo",
-          "LifecycleState": "InService",
-          "ProtectedFromScaleIn": false
-        },{
-          "AvailabilityZone": "eu-west-1a",
-          "HealthStatus": "Healthy",
-          "InstanceId": "i-ab7ca923",
-          "LaunchConfigurationName": "LaunchConfigurationNameFoo",
-          "LifecycleState": "InService",
-          "ProtectedFromScaleIn": false
-        }],
-      "LaunchConfigurationName": "LaunchConfigurationNameFoo",
-      "MaxSize": 3,
-      "MinSize": 1,
-      "NewInstancesProtectedFromScaleIn": false
-}
+[
+  {
+        "AutoScalingGroupName": "some-Autoscaling-Group",
+        "DesiredCapacity": 1,
+        "Instances": [{
+            "AvailabilityZone": "eu-west-1c",
+            "HealthStatus": "Healthy",
+            "InstanceId": "i-34719eb8",
+            "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+            "LifecycleState": "InService",
+            "ProtectedFromScaleIn": false
+          },{
+            "AvailabilityZone": "eu-west-1b",
+            "HealthStatus": "Healthy",
+            "InstanceId": "i-446a73cf",
+            "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+            "LifecycleState": "InService",
+            "ProtectedFromScaleIn": false
+          },{
+            "AvailabilityZone": "eu-west-1a",
+            "HealthStatus": "Healthy",
+            "InstanceId": "i-ab7ca923",
+            "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+            "LifecycleState": "InService",
+            "ProtectedFromScaleIn": false
+          }],
+        "LaunchConfigurationName": "LaunchConfigurationNameFoo",
+        "MaxSize": 3,
+        "MinSize": 1,
+        "NewInstancesProtectedFromScaleIn": false
+  }
+]

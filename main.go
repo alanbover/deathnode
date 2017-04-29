@@ -51,9 +51,10 @@ func main() {
 func Run(mesosMonitor *mesos.MesosMonitor, autoscalingGroups *aws.AutoscalingGroups,
 	deathNodeWatcher *deathnode.DeathNodeWatcher, notebook *deathnode.Notebook) {
 
+	autoscalingGroups.Refresh()
 	mesosMonitor.Refresh()
 
-	for _, autoscalingGroup := range *autoscalingGroups {
+	for _, autoscalingGroup := range autoscalingGroups.GetMonitors() {
 		deathNodeWatcher.CheckIfInstancesToKill(autoscalingGroup)
 	}
 

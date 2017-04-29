@@ -99,8 +99,8 @@ func (m *MesosMonitor) GetMesosSlaveByIp(ipAddress string) (Slave, error) {
 	return Slave{}, fmt.Errorf("Instance with ip %v not found in Mesos", ipAddress)
 }
 
-func (m *MesosMonitor) SetMesosSlaveInMaintenance(hostname, ip string) {
-	m.mesosConn.setHostInMaintenance(hostname, ip)
+func (m *MesosMonitor) SetMesosSlavesInMaintenance(hosts map[string]string) error {
+	return m.mesosConn.setHostsInMaintenance(hosts)
 }
 
 func (m *MesosMonitor) DoesSlaveHasFrameworks(ipAddress string) (bool, error) {
