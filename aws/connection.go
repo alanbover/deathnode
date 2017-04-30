@@ -14,7 +14,7 @@ type AwsConnection struct {
 
 type AwsConnectionInterface interface {
 	DescribeInstanceById(instanceId string) (*ec2.Instance, error)
-	DescribeAGByName(autoscalingGroupName string) (*autoscaling.Group, error)
+	DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error)
 	DetachInstance(autoscalingGroupName string, instanceId string) error
 	TerminateInstance(instanceId string) error
 	SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error
@@ -40,7 +40,7 @@ func NewConnection(accessKey, secretKey, region, iamRole, iamSession string) (*A
 	}, nil
 }
 
-func (c *AwsConnection) DescribeAGByName(autoscalingGroupName string) (*autoscaling.Group, error) {
+func (c *AwsConnection) DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error) {
 
 	filter := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{
@@ -54,7 +54,7 @@ func (c *AwsConnection) DescribeAGByName(autoscalingGroupName string) (*autoscal
 		return nil, err
 	}
 
-	return response.AutoScalingGroups[0], nil
+	return response.AutoScalingGroups, nil
 }
 
 func (c *AwsConnection) DetachInstance(autoscalingGroupName, instanceId string) error {
@@ -120,9 +120,11 @@ func (c *AwsConnection) SetASGInstanceProtection(autoscalingGroupName *string, i
 		return err
 	}
 
+	protectedFromScaleIn := true
 	setInstanceProtectionInput := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: autoscalingGroupName,
 		InstanceIds: instanceIds,
+		ProtectedFromScaleIn: &protectedFromScaleIn,
 	}
 
 	_, err = c.autoscaling.SetInstanceProtection(setInstanceProtectionInput)

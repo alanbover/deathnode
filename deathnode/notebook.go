@@ -31,20 +31,37 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 
 	log.Infof("Requesting to kill instance %s", instance.GetIP())
 
+
+	err := n.setAgentsInMaintenance()
+	if err != nil {
+		return err
+	}
+
+	err = instance.RemoveFromAutoscalingGroup()
+	if err != nil {
+		return err
+	}
+
 	instanceRemoveRequest := &instanceRemoveRequest{
 		instance: instance,
 		time:     time.Now(),
 	}
 
 	n.instanceRemoveRequests[instance.GetIP()] = instanceRemoveRequest
-
-	instance.RemoveFromAutoscalingGroup()
 	log.Debugf("Instance %s removed from ASG", instance.GetIP())
 
-	agentInfo, _ := n.mesosMonitor.GetMesosSlaveByIp(instance.GetIP())
-	n.mesosMonitor.SetMesosSlaveInMaintenance(agentInfo.Hostname, instance.GetIP())
-
 	return nil
+}
+
+func (n *Notebook) setAgentsInMaintenance() error {
+
+	hosts := map[string]string{}
+	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
+		agentInfo, _ := n.mesosMonitor.GetMesosSlaveByIp(instanceRemoveRequest.instance.GetIP())
+		hosts[agentInfo.Hostname] = instanceRemoveRequest.instance.GetIP()
+	}
+
+	return n.mesosMonitor.SetMesosSlavesInMaintenance(hosts)
 }
 
 func (n *Notebook) KillAttempt() error {
@@ -59,6 +76,10 @@ func (n *Notebook) KillAttempt() error {
 			log.Infof("Destroying instance %s", instanceRemoveRequest.instance.GetIP())
 			instanceRemoveRequest.instance.Destroy()
 			delete(n.instanceRemoveRequests, instanceRemoveRequest.instance.GetIP())
+			err := n.setAgentsInMaintenance()
+			if err != nil {
+				return err
+			}
 		}
 	}
 

@@ -21,10 +21,10 @@ func (c *AwsConnectionMock) DescribeInstanceById(instanceId string) (*ec2.Instan
 	return mockResponse.(*ec2.Instance), nil
 }
 
-func (c *AwsConnectionMock) DescribeAGByName(autoscalingGroupName string) (*autoscaling.Group, error) {
+func (c *AwsConnectionMock) DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error) {
 
-	mockResponse, _ := c.replay(&autoscaling.Group{}, "DescribeAGByName")
-	return mockResponse.(*autoscaling.Group), nil
+	mockResponse, _ := c.replay(&[]*autoscaling.Group{}, "DescribeAGByName")
+	return *mockResponse.(*[]*autoscaling.Group), nil
 }
 
 func (c *AwsConnectionMock) DetachInstance(autoscalingGroupName, instanceId string) error {
