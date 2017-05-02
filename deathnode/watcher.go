@@ -35,25 +35,35 @@ func NewDeathNodeWatcher(notebook *Notebook, mesosMonitor *mesos.MesosMonitor, c
 	}
 }
 
-func (y *DeathNodeWatcher) CheckIfInstancesToKill(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
+func (y *DeathNodeWatcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
 
-	numUndesiredMesosAgents := autoscalingMonitor.NumUndesiredInstances()
-	log.Debugf("Undesired Mesos Agents: %d", numUndesiredMesosAgents)
+	numUndesiredInstances := autoscalingMonitor.NumUndesiredInstances()
+	log.Debugf("Undesired Mesos Agents: %d", numUndesiredInstances)
 
-	removedAgents := 0
+	removedInstances := 0
 
-	for removedAgents < numUndesiredMesosAgents {
-		allowedAgentsToKill := y.constraints.filter(autoscalingMonitor)
-		bestAgentToKill := y.recommender.find(allowedAgentsToKill)
-		err := y.notebook.write(bestAgentToKill)
+	for removedInstances < numUndesiredInstances {
+		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor)
+		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
+		log.Debugf("Start agent removal for %s", bestInstanceToKill.GetIP())
+		err := y.notebook.write(bestInstanceToKill)
 		if err != nil {
+			log.Errorf("Unable to add instance for removal", bestInstanceToKill.GetIP())
 			log.Error(err)
 			break
 		}
 
-		autoscalingMonitor.RemoveInstance(bestAgentToKill)
-		removedAgents += 1
+		autoscalingMonitor.RemoveInstance(bestInstanceToKill)
+		removedInstances += 1
 	}
 
 	return nil
+}
+
+func (y *DeathNodeWatcher) DestroyInstancesAttempt() {
+
+	err := y.notebook.DestroyInstancesAttempt()
+	if err != nil {
+		log.Error(err)
+	}
 }

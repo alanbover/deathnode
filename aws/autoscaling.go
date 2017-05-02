@@ -1,6 +1,9 @@
 package aws
 
-import "github.com/aws/aws-sdk-go/service/autoscaling"
+import (
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	log "github.com/sirupsen/logrus"
+)
 
 type AutoscalingGroups struct {
 	monitors	map[string]map[string]*AutoscalingGroupMonitor
@@ -61,6 +64,7 @@ func (a *AutoscalingGroups) Refresh() error {
 			if ok {
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName].Refresh(autoscalingGroupResponse)
 			} else {
+				log.Infof("Found new autoscalingGroup to monitor: %s", *autoscalingGroupResponse.AutoScalingGroupName)
 				autoscalingGroupMonitor, _ := NewAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName)
 				autoscalingGroupMonitor.Refresh(autoscalingGroupResponse)
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName] = autoscalingGroupMonitor
@@ -77,6 +81,7 @@ func (a *AutoscalingGroups) Refresh() error {
 				}
 			}
 			if !found {
+				log.Infof("Autoscaling group %s removed. Deleting it", autoscalingGroupName)
 				delete(a.monitors[autoscalingGroupPrefix], autoscalingGroupName)
 			}
 		}
@@ -101,10 +106,11 @@ func (a *AutoscalingGroups) GetMonitors() []*AutoscalingGroupMonitor {
 func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) error {
 
 	if !*autoscalingGroup.NewInstancesProtectedFromScaleIn {
+		log.Infof("Setting autoscaling %s and it's instances scaleInProtection flag", autoscalingGroup.AutoScalingGroupName)
 		instancesToProtect := []*string{}
 
 		for _, instance := range autoscalingGroup.Instances {
-				instancesToProtect = append(instancesToProtect, instance.InstanceId)
+			instancesToProtect = append(instancesToProtect, instance.InstanceId)
 		}
 
 		err := a.awsConnection.SetASGInstanceProtection(autoscalingGroup.AutoScalingGroupName, instancesToProtect)
@@ -119,6 +125,7 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 	for _, instance := range autoscalingGroup.Instances {
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
 		if !ok {
+			log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
 			instanceMonitor, _ := NewInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.LaunchConfigurationName, *instance.InstanceId)
 			a.autoscaling.instanceMonitors[*instance.InstanceId] = instanceMonitor
 		}
@@ -134,6 +141,7 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 			}
 		}
 		if !found {
+			log.Debugf("Instance %s has dissapeared from ASG %s. Stop monitoring it", instanceId, a.autoscaling.autoscalingGroupName)
 			delete(a.autoscaling.instanceMonitors, instanceId)
 		}
 

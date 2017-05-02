@@ -5,7 +5,6 @@ package mesos
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"strings"
 )
 
@@ -48,7 +47,6 @@ func (m *MesosMonitor) getMesosFrameworks() map[string]Framework {
 	for _, framework := range frameworksResponse.Frameworks {
 		for _, protectedFramework := range m.protectedFrameworks {
 			if protectedFramework == framework.Name {
-				log.Debugf("Add framework id %s to mesos cache", framework.Id)
 				frameworksMap[framework.Id] = framework
 			}
 		}
@@ -62,7 +60,6 @@ func (m *MesosMonitor) getMesosSlaves() map[string]Slave {
 	slavesResponse, _ := m.mesosConn.getMesosSlaves()
 	for _, slave := range slavesResponse.Slaves {
 		ipAddress := m.getIpAddressFromSlavePID(slave.Pid)
-		log.Debugf("Add slave %s to mesos cache", ipAddress)
 		slavesMap[ipAddress] = slave
 	}
 	return slavesMap
@@ -82,7 +79,6 @@ func (m *MesosMonitor) getMesosTasks() map[string][]Task {
 	tasksResponse, _ := m.mesosConn.getMesosTasks()
 	for _, task := range tasksResponse.Tasks {
 		if task.State == "TASK_RUNNING" {
-			log.Debugf("Add task %s to to host %s", task.Name, task.Slave_id)
 			tasksMap[task.Slave_id] = append(tasksMap[task.Slave_id], task)
 		}
 	}
@@ -103,17 +99,16 @@ func (m *MesosMonitor) SetMesosSlavesInMaintenance(hosts map[string]string) erro
 	return m.mesosConn.setHostsInMaintenance(hosts)
 }
 
-func (m *MesosMonitor) DoesSlaveHasFrameworks(ipAddress string) (bool, error) {
+func (m *MesosMonitor) DoesSlaveHasFrameworks(ipAddress string) bool {
 
 	slaveId := m.mesosCache.slaves[ipAddress].Id
 	slaveTasks := m.mesosCache.tasks[slaveId]
 	for _, task := range slaveTasks {
-		log.Debugf("Check if framework id %s is protected", task.Framework_id)
 		_, ok := m.mesosCache.frameworks[task.Framework_id]
 		if ok {
-			return true, nil
+			return true
 		}
 	}
 
-	return false, fmt.Errorf("Instance with ip %v not found in Mesos", ipAddress)
+	return false
 }
