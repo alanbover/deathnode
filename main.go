@@ -13,7 +13,7 @@ import (
 type ArrayFlags []string
 
 var accessKey, secretKey, region, iamRole, iamSession, mesosUrl, constraintsType, recommenderType string
-var autoscalingGroupNames, protectedFrameworks ArrayFlags
+var autoscalingGroupPrefixes, protectedFrameworks ArrayFlags
 var polling_seconds int
 var debug bool
 
@@ -27,38 +27,44 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
+	// Create the monitors for autoscaling groups
 	aws_conn, err := aws.NewConnection(accessKey, secretKey, region, iamRole, iamSession)
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(aws_conn, autoscalingGroupNames)
+	autoscalingGroups, _ := aws.NewAutoscalingGroups(aws_conn, autoscalingGroupPrefixes)
 
+	// Create the Mesos monitor
 	mesosConn := &mesos.MesosConnection{
 		MasterUrl: mesosUrl,
 	}
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 
+	// Create deathnoteWatcher
 	notebook := deathnode.NewNotebook(mesosMonitor)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(polling_seconds))
 	for {
-		go Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
+		go Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 		<-ticker.C
 	}
 }
 
 func Run(mesosMonitor *mesos.MesosMonitor, autoscalingGroups *aws.AutoscalingGroups,
-	deathNodeWatcher *deathnode.DeathNodeWatcher, notebook *deathnode.Notebook) {
+	deathNodeWatcher *deathnode.DeathNodeWatcher) {
 
+	// Refresh autoscaling monitors and mesos monitor
 	autoscalingGroups.Refresh()
 	mesosMonitor.Refresh()
 
+	// For each autoscaling monitor, check if any instances needs to be removed
 	for _, autoscalingGroup := range autoscalingGroups.GetMonitors() {
-		deathNodeWatcher.CheckIfInstancesToKill(autoscalingGroup)
+		deathNodeWatcher.RemoveUndesiredInstances(autoscalingGroup)
 	}
 
-	notebook.KillAttempt()
+	// Check if any agents are drained, so we can remove them from AWS
+	deathNodeWatcher.DestroyInstancesAttempt()
 }
 
 func initFlags() {
@@ -72,7 +78,7 @@ func initFlags() {
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
 	flag.StringVar(&mesosUrl, "mesosUrl", "", "The URL for Mesos master")
 
-	flag.Var(&autoscalingGroupNames, "autoscalingGroupName", "The autoscaling group name to monitor")
+	flag.Var(&autoscalingGroupPrefixes, "autoscalingGroupName", "An autoscalingGroup prefix for monitor")
 	flag.Var(&protectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node")
 
 	// Move constraints to array, so we apply multiple
@@ -91,7 +97,7 @@ func enforceFlags() {
 		log.Fatal("mesosUrl flag is required")
 	}
 
-	if len(autoscalingGroupNames) < 1 {
+	if len(autoscalingGroupPrefixes) < 1 {
 		flag.Usage()
 		log.Fatal("at least one autoscalingGroupName flag is required")
 	}

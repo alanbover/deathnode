@@ -30,10 +30,10 @@ func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall == nil {
@@ -71,10 +71,10 @@ func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall == nil {
@@ -116,8 +116,8 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	destroyInstanceCall := awsConn.Requests["TerminateInstance"]
 	if destroyInstanceCall == nil {
@@ -130,7 +130,7 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 		t.Fatal("Two instance destroy have been called with the same id")
 	}
 
-	err := notebook.KillAttempt()
+	err := notebook.DestroyInstancesAttempt()
 	destroyInstanceCall = awsConn.Requests["TerminateInstance"]
 	if err != nil {
 		t.Fatal(err)
@@ -162,10 +162,10 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall != nil {

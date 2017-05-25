@@ -29,15 +29,8 @@ func NewNotebook(mesosMonitor *mesos.MesosMonitor) *Notebook {
 
 func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 
-	log.Infof("Requesting to kill instance %s", instance.GetIP())
-
-
-	err := n.setAgentsInMaintenance()
-	if err != nil {
-		return err
-	}
-
-	err = instance.RemoveFromAutoscalingGroup()
+	log.Debugf("Remove agent %s from autoscalingGroup", instance.GetIP())
+	err := instance.RemoveFromAutoscalingGroup()
 	if err != nil {
 		return err
 	}
@@ -48,7 +41,12 @@ func (n *Notebook) write(instance *aws.InstanceMonitor) error {
 	}
 
 	n.instanceRemoveRequests[instance.GetIP()] = instanceRemoveRequest
-	log.Debugf("Instance %s removed from ASG", instance.GetIP())
+
+	log.Debugf("Set agent %s in maintenance", instance.GetIP())
+	err = n.setAgentsInMaintenance()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -64,22 +62,27 @@ func (n *Notebook) setAgentsInMaintenance() error {
 	return n.mesosMonitor.SetMesosSlavesInMaintenance(hosts)
 }
 
-func (n *Notebook) KillAttempt() error {
+func (n *Notebook) DestroyInstancesAttempt() error {
 
 	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
-		log.Debugf("Checking if instance %s can be killed", instanceRemoveRequest.instance.GetIP())
-		hasFrameworks, err := n.mesosMonitor.DoesSlaveHasFrameworks(instanceRemoveRequest.instance.GetIP())
-		if err != nil {
-			log.Errorf("Instance %s can't be found in Mesos: ", instanceRemoveRequest.instance.GetIP())
-		}
+		log.Debugf("Check if instance %s has running tasks", instanceRemoveRequest.instance.GetIP())
+		hasFrameworks := n.mesosMonitor.DoesSlaveHasFrameworks(instanceRemoveRequest.instance.GetIP())
+
 		if !hasFrameworks {
 			log.Infof("Destroying instance %s", instanceRemoveRequest.instance.GetIP())
-			instanceRemoveRequest.instance.Destroy()
-			delete(n.instanceRemoveRequests, instanceRemoveRequest.instance.GetIP())
-			err := n.setAgentsInMaintenance()
+			err := instanceRemoveRequest.instance.Destroy()
 			if err != nil {
-				return err
+				log.Errorf("Error destroying instance %s", err)
+				break
 			}
+
+			delete(n.instanceRemoveRequests, instanceRemoveRequest.instance.GetIP())
+			err = n.setAgentsInMaintenance()
+			if err != nil {
+				log.Errorf("Error removing host %s from maintenance", err)
+				break
+			}
+			log.Infof("Instance %s destroyed", instanceRemoveRequest.instance.GetIP())
 		}
 	}
 

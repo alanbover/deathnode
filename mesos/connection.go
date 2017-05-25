@@ -94,12 +94,28 @@ func (c *MesosConnection) setHostsInMaintenance(hosts map[string]string) error {
 
 func (c *MesosConnection) getMesosTasks() (*TasksResponse, error) {
 
-	url := fmt.Sprintf(c.MasterUrl + "/master/tasks")
-
 	var tasks TasksResponse
-	mesos_get_api_call(url, &tasks)
+	c.getMesosTasksRecursive(&tasks, 0)
 
 	return &tasks, nil
+}
+
+func (c *MesosConnection) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int) error {
+
+	var tasks TasksResponse
+	url := fmt.Sprintf("%s/master/tasks?limit=100&offset=%d", c.MasterUrl, offset)
+	err := mesos_get_api_call(url, &tasks)
+	if err != nil {
+		return err
+	}
+
+	tasksResponse.Tasks = append(tasksResponse.Tasks, tasks.Tasks...)
+
+	if len(tasks.Tasks) == 100 {
+		c.getMesosTasksRecursive(tasksResponse, offset + 100)
+	}
+
+	return nil
 }
 
 func (c *MesosConnection) getMesosFrameworks() (*FrameworksResponse, error) {
