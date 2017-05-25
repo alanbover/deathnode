@@ -5,9 +5,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// monitors is a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
 type AutoscalingGroups struct {
-	monitors	map[string]map[string]*AutoscalingGroupMonitor
-	awsConnection 	AwsConnectionInterface
+	monitors      map[string]map[string]*AutoscalingGroupMonitor
+	awsConnection AwsConnectionInterface
 }
 
 type AutoscalingGroupMonitor struct {
@@ -30,7 +31,7 @@ func NewAutoscalingGroups(awsConnection AwsConnectionInterface, autoscalingGroup
 	}
 
 	autoscalingGroups := &AutoscalingGroups{
-		monitors: monitors,
+		monitors:      monitors,
 		awsConnection: awsConnection,
 	}
 
@@ -57,6 +58,10 @@ func (a *AutoscalingGroups) Refresh() error {
 		response, err := a.awsConnection.DescribeAGByName(autoscalingGroupPrefix)
 		if err != nil {
 			return err
+		}
+
+		if len(response) == 0 {
+			log.Warnf("No autoscaling groups found under autoscalingGroupPrefix %s", autoscalingGroupPrefix)
 		}
 
 		for _, autoscalingGroupResponse := range response {
@@ -103,10 +108,27 @@ func (a *AutoscalingGroups) GetMonitors() []*AutoscalingGroupMonitor {
 	return monitors
 }
 
+func (a *AutoscalingGroups) GetAutoscalingNameByInstanceId(instanceId string) (string, bool) {
+
+	for asgPrefix, _ := range a.monitors {
+		for _, asgGroupMonitor := range a.monitors[asgPrefix] {
+			instances := asgGroupMonitor.GetInstances()
+			for _, instanceMonitor := range *instances {
+				if instanceMonitor.instance.instanceId == instanceId {
+					return asgGroupMonitor.autoscaling.autoscalingGroupName, true
+				}
+			}
+		}
+	}
+
+	return "", false
+
+}
+
 func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) error {
 
 	if !*autoscalingGroup.NewInstancesProtectedFromScaleIn {
-		log.Infof("Setting autoscaling %s and it's instances scaleInProtection flag", autoscalingGroup.AutoScalingGroupName)
+		log.Infof("Setting autoscaling %s and it's instances scaleInProtection flag", *autoscalingGroup.AutoScalingGroupName)
 		instancesToProtect := []*string{}
 
 		for _, instance := range autoscalingGroup.Instances {
@@ -163,7 +185,7 @@ func (a *AutoscalingGroupMonitor) GetInstances() *[]InstanceMonitor {
 
 func (a *AutoscalingGroupMonitor) NumUndesiredInstances() int {
 
-	if len(a.autoscaling.instanceMonitors) > int(a.autoscaling.desiredCapacity) {
+	if len(a.autoscaling.instanceMonitors)-len(a.GetInstancesMarkedToBeRemoved()) > int(a.autoscaling.desiredCapacity) {
 		return len(a.autoscaling.instanceMonitors) - int(a.autoscaling.desiredCapacity)
 	}
 
@@ -184,4 +206,16 @@ func (a *AutoscalingGroupMonitor) hasInstance(instanceId string) bool {
 func (a *AutoscalingGroupMonitor) RemoveInstance(instanceMonitor *InstanceMonitor) {
 
 	delete(a.autoscaling.instanceMonitors, instanceMonitor.instance.instanceId)
+}
+
+func (a *AutoscalingGroupMonitor) GetInstancesMarkedToBeRemoved() []*InstanceMonitor {
+
+	instancesMarkedToBeRemoved := []*InstanceMonitor{}
+	for _, instanceMonitor := range a.autoscaling.instanceMonitors {
+		if instanceMonitor.instance.markedToBeRemoved {
+			instancesMarkedToBeRemoved = append(instancesMarkedToBeRemoved, instanceMonitor)
+		}
+	}
+
+	return instancesMarkedToBeRemoved
 }

@@ -1,0 +1,12 @@
+[
+  {
+    "PrivateDnsName": "myprivatedns",
+    "PrivateIpAddress": "10.0.0.2",
+    "InstanceId": "i-34719eb8"
+  },
+  {
+    "PrivateDnsName": "myprivatedns2",
+    "PrivateIpAddress": "10.0.0.3",
+    "InstanceId": "i-446a73cf"
+  }
+]

@@ -13,11 +13,27 @@ It's implementation is based using:
 Deathnode monitors the autoscaling groups from the Mesos Agents. Whenever it detects that one instance from an autoscaling group should be removed, it will:
 
 *  Find the best agent to be killed
-*  Set the instance in maintenance mode
 *  Tag the instance as being deleted
 *  Remove the instance from the ASG
+*  Set the instance in maintenance mode
 
-Then deathnode will keep monitoring this agent, destroying it once the agent is drained.
+Then deathnode will keep monitoring this agent, destroying it once it's drained.
+
+### Build
+To execute the test, run:
+```
+make test
+```
+
+To build the app, run:
+```
+make build
+```
+
+To build a docker image, run:
+```
+DOCKERTAG="version" make docker
+```
 
 ### Limitations
 Deathnode is still in development, and has not being tested in a real-production environment. 

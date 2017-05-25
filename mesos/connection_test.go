@@ -1,8 +1,8 @@
 package mesos
 
 import (
-	"testing"
 	"encoding/json"
+	"testing"
 )
 
 func TestGenerateTemplate(t *testing.T) {

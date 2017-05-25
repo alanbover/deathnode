@@ -169,7 +169,7 @@ func TestTwoAutoscalingMonitors(t *testing.T) {
 				"default", "default", "default",
 				"default", "default", "default",
 			},
-			"DescribeAGByName":     &[]string{"default", "two_asg"},
+			"DescribeAGByName": &[]string{"default", "two_asg"},
 		},
 	}
 
@@ -183,11 +183,17 @@ func TestTwoAutoscalingMonitors(t *testing.T) {
 		t.Fatal("Incorrect number autoscalingGroups")
 	}
 
-	if monitors[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
+	if monitors[0].autoscaling.autoscalingGroupName == monitors[1].autoscaling.autoscalingGroupName {
 		t.Fatal("Incorrect autoscaling group name")
 	}
 
-	if monitors[1].autoscaling.autoscalingGroupName != "some-Autoscaling-Group2" {
+	if monitors[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" &&
+		monitors[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group2" {
+		t.Fatal("Incorrect autoscaling group name")
+	}
+
+	if monitors[1].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" &&
+		monitors[1].autoscaling.autoscalingGroupName != "some-Autoscaling-Group2" {
 		t.Fatal("Incorrect autoscaling group name")
 	}
 }
@@ -201,7 +207,7 @@ func TestRemoveAutoscalingGroup(t *testing.T) {
 				"default", "default", "default",
 				"default", "default", "default",
 			},
-			"DescribeAGByName":     &[]string{"default", "two_asg", "default"},
+			"DescribeAGByName": &[]string{"default", "two_asg", "default"},
 		},
 	}
 
@@ -215,4 +221,31 @@ func TestRemoveAutoscalingGroup(t *testing.T) {
 	if len(monitors) != 1 {
 		t.Fatal("Incorrect number autoscalingGroups")
 	}
+}
+
+func TestGetAutoscalingNameByInstanceId(t *testing.T) {
+
+	awsConn := &AwsConnectionMock{
+		Records: map[string]*[]string{
+			"DescribeInstanceById": &[]string{"default", "default", "default"},
+			"DescribeAGByName":     &[]string{"default"},
+		},
+	}
+
+	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups.Refresh()
+
+	asgId, _ := autoscalingGroups.GetAutoscalingNameByInstanceId("i-34719eb8")
+
+	if asgId != "some-Autoscaling-Group" {
+		t.Errorf("Expected : [%s] Found: [%s]", "some-Autoscaling-Group", asgId)
+	}
+
+	_, found := autoscalingGroups.GetAutoscalingNameByInstanceId("i-doesntexist")
+
+	if found {
+		t.Errorf("Expected : [%b] Found: [%s]", "false", found)
+	}
+
 }

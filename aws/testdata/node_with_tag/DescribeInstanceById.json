@@ -1,0 +1,9 @@
+{
+  "PrivateIpAddress" : "10.0.0.2",
+  "Tags" : [
+    {
+      "Key" : "DEATH_NODE_MARK",
+      "Value" : "12345678"
+    }
+  ]
+}
