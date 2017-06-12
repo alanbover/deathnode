@@ -14,7 +14,7 @@ type ArrayFlags []string
 
 var accessKey, secretKey, region, iamRole, iamSession, mesosUrl, constraintsType, recommenderType string
 var autoscalingGroupPrefixes, protectedFrameworks ArrayFlags
-var polling_seconds int
+var polling_seconds, delay_delete_seconds int
 var debug bool
 
 func main() {
@@ -41,7 +41,7 @@ func main() {
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delay_delete_seconds)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(polling_seconds))
@@ -87,6 +87,7 @@ func initFlags() {
 	flag.StringVar(&recommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use")
 
 	flag.IntVar(&polling_seconds, "polling", 60, "Seconds between executions")
+	flag.IntVar(&delay_delete_seconds, "delayDelete", 0, "Time to wait between kill executions (in seconds)")
 
 	flag.Parse()
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/alanbover/deathnode/mesos"
 	log "github.com/sirupsen/logrus"
 	"testing"
+	"time"
 )
 
 func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
@@ -31,7 +32,7 @@ func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
@@ -73,7 +74,7 @@ func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
@@ -117,7 +118,7 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn, 0)
 
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
@@ -138,6 +139,54 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(destroyInstanceCall) != 2 {
+		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 2", len(destroyInstanceCall))
+	}
+}
+
+func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
+
+	log.SetLevel(log.DebugLevel)
+
+	awsConn := &aws.AwsConnectionMock{
+		Records: map[string]*[]string{
+			"DescribeInstanceById": &[]string{
+				"node1", "node2", "node3",
+				"node1", "node2", "node3",
+			},
+			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "two_undesired_hosts"},
+			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
+		},
+	}
+
+	mesosConn := &mesos.MesosConnectionMock{
+		Records: map[string]*[]string{
+			"GetMesosFrameworks": &[]string{"default", "default"},
+			"GetMesosSlaves":     &[]string{"default", "default"},
+			"GetMesosTasks":      &[]string{"default", "notasks"},
+		},
+	}
+
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn, 1)
+
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+
+	destroyInstanceCall := awsConn.Requests["TerminateInstance"]
+	if destroyInstanceCall == nil {
+		t.Fatal("Two instance destroy should have been called. Found nil")
+	}
+	if len(destroyInstanceCall) != 1 {
+		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 1", len(destroyInstanceCall))
+	}
+
+	time.Sleep(time.Second * 2)
+	err := notebook.DestroyInstancesAttempt()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	destroyInstanceCall = awsConn.Requests["TerminateInstance"]
 	if len(destroyInstanceCall) != 2 {
 		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 2", len(destroyInstanceCall))
 	}
@@ -166,7 +215,7 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 		},
 	}
 
-	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn)
+	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
@@ -177,7 +226,7 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 	}
 }
 
-func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.MesosConnectionInterface) (
+func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.MesosConnectionInterface, delayDeleteSeconds int) (
 	*mesos.MesosMonitor, *aws.AutoscalingGroups, *deathnode.DeathNodeWatcher, *deathnode.Notebook) {
 
 	protectedFrameworks := []string{"frameworkname1"}
@@ -188,7 +237,7 @@ func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.Me
 
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames)
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 	return mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook
 }

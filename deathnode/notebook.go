@@ -8,20 +8,25 @@ import (
 	"github.com/alanbover/deathnode/mesos"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
+	"time"
 )
 
 type Notebook struct {
-	mesosMonitor      *mesos.MesosMonitor
-	awsConnection     aws.AwsConnectionInterface
-	autoscalingGroups *aws.AutoscalingGroups
+	mesosMonitor        *mesos.MesosMonitor
+	awsConnection       aws.AwsConnectionInterface
+	autoscalingGroups   *aws.AutoscalingGroups
+	delayDeleteSeconds  int
+	lastDeleteTimestamp time.Time
 }
 
-func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.AwsConnectionInterface, mesosMonitor *mesos.MesosMonitor) *Notebook {
+func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.AwsConnectionInterface, mesosMonitor *mesos.MesosMonitor, delayDeleteSeconds int) *Notebook {
 
 	return &Notebook{
-		mesosMonitor:      mesosMonitor,
-		awsConnection:     awsConn,
-		autoscalingGroups: autoscalingGroups,
+		mesosMonitor:        mesosMonitor,
+		awsConnection:       awsConn,
+		autoscalingGroups:   autoscalingGroups,
+		delayDeleteSeconds:  delayDeleteSeconds,
+		lastDeleteTimestamp: time.Time{},
 	}
 }
 
@@ -47,6 +52,12 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 	// Set instances in maintenance
 	n.setAgentsInMaintenance(instances)
 
+	// Exit if an instance was previously deleted before delayDeleteSeconds
+	if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
+		log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
+		return nil
+	}
+
 	for _, instance := range instances {
 
 		// If the instance belongs to an Autoscaling group, remove it
@@ -66,6 +77,10 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			err := n.awsConnection.TerminateInstance(*instance.InstanceId)
 			if err != nil {
 				log.Errorf("Unable to destroy instance %s", *instance.InstanceId)
+			}
+			if n.delayDeleteSeconds != 0 {
+				n.lastDeleteTimestamp = time.Now()
+				return nil
 			}
 		}
 	}
