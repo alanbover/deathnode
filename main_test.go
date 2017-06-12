@@ -18,7 +18,8 @@ func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeAGByName": &[]string{"default", "one_undesired_host"},
+			"DescribeInstancesByTag": &[]string{"default", "one_undesired_host"},
+			"DescribeAGByName":       &[]string{"default", "one_undesired_host"},
 		},
 	}
 
@@ -59,7 +60,8 @@ func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeAGByName": &[]string{"default", "two_undesired_hosts"},
+			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts"},
+			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
 		},
 	}
 
@@ -102,7 +104,8 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeAGByName": &[]string{"default", "two_undesired_hosts"},
+			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "default"},
+			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
 		},
 	}
 
@@ -136,7 +139,7 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(destroyInstanceCall) != 2 {
-		t.Fatal("Instance from notebook was not correctly removed and a new destroy was called")
+		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 2", len(destroyInstanceCall))
 	}
 }
 
@@ -150,7 +153,8 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeAGByName": &[]string{"default", "default"},
+			"DescribeInstancesByTag": &[]string{"default", "default"},
+			"DescribeAGByName":       &[]string{"default", "default"},
 		},
 	}
 
@@ -184,7 +188,7 @@ func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.Me
 
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames)
-	notebook := deathnode.NewNotebook(mesosMonitor)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 	return mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook
 }

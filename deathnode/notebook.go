@@ -6,57 +6,30 @@ package deathnode
 import (
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
-type instanceRemoveRequest struct {
-	instance *aws.InstanceMonitor
-	time     time.Time
-}
-
 type Notebook struct {
-	mesosMonitor           *mesos.MesosMonitor
-	instanceRemoveRequests map[string]*instanceRemoveRequest
+	mesosMonitor      *mesos.MesosMonitor
+	awsConnection     aws.AwsConnectionInterface
+	autoscalingGroups *aws.AutoscalingGroups
 }
 
-func NewNotebook(mesosMonitor *mesos.MesosMonitor) *Notebook {
+func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.AwsConnectionInterface, mesosMonitor *mesos.MesosMonitor) *Notebook {
+
 	return &Notebook{
-		mesosMonitor:           mesosMonitor,
-		instanceRemoveRequests: map[string]*instanceRemoveRequest{},
+		mesosMonitor:      mesosMonitor,
+		awsConnection:     awsConn,
+		autoscalingGroups: autoscalingGroups,
 	}
 }
 
-func (n *Notebook) write(instance *aws.InstanceMonitor) error {
-
-	log.Debugf("Remove agent %s from autoscalingGroup", instance.GetIP())
-	err := instance.RemoveFromAutoscalingGroup()
-	if err != nil {
-		return err
-	}
-
-	instanceRemoveRequest := &instanceRemoveRequest{
-		instance: instance,
-		time:     time.Now(),
-	}
-
-	n.instanceRemoveRequests[instance.GetIP()] = instanceRemoveRequest
-
-	log.Debugf("Set agent %s in maintenance", instance.GetIP())
-	err = n.setAgentsInMaintenance()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (n *Notebook) setAgentsInMaintenance() error {
+func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 
 	hosts := map[string]string{}
-	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
-		agentInfo, _ := n.mesosMonitor.GetMesosSlaveByIp(instanceRemoveRequest.instance.GetIP())
-		hosts[agentInfo.Hostname] = instanceRemoveRequest.instance.GetIP()
+	for _, instance := range instances {
+		hosts[*instance.PrivateDnsName] = *instance.PrivateIpAddress
 	}
 
 	return n.mesosMonitor.SetMesosSlavesInMaintenance(hosts)
@@ -64,25 +37,36 @@ func (n *Notebook) setAgentsInMaintenance() error {
 
 func (n *Notebook) DestroyInstancesAttempt() error {
 
-	for _, instanceRemoveRequest := range n.instanceRemoveRequests {
-		log.Debugf("Check if instance %s has running tasks", instanceRemoveRequest.instance.GetIP())
-		hasFrameworks := n.mesosMonitor.DoesSlaveHasFrameworks(instanceRemoveRequest.instance.GetIP())
+	// Get instances marked for removal
+	instances, err := n.awsConnection.DescribeInstancesByTag(aws.DEATH_NODE_TAG_MARK)
+	if err != nil {
+		log.Debugf("Unable to find instances with %s tag", aws.DEATH_NODE_TAG_MARK)
+		return err
+	}
 
+	// Set instances in maintenance
+	n.setAgentsInMaintenance(instances)
+
+	for _, instance := range instances {
+
+		// If the instance belongs to an Autoscaling group, remove it
+		autoscalingGroupName, found := n.autoscalingGroups.GetAutoscalingNameByInstanceId(*instance.InstanceId)
+		if found {
+			log.Infof("Remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
+			err := n.awsConnection.DetachInstance(autoscalingGroupName, *instance.InstanceId)
+			if err != nil {
+				log.Errorf("Unable to remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
+			}
+		}
+
+		// If the instance have no tasks from protected frameworks, delete it
+		hasFrameworks := n.mesosMonitor.DoesSlaveHasFrameworks(*instance.PrivateIpAddress)
 		if !hasFrameworks {
-			log.Infof("Destroying instance %s", instanceRemoveRequest.instance.GetIP())
-			err := instanceRemoveRequest.instance.Destroy()
+			log.Infof("Destroy instance %s", *instance.InstanceId)
+			err := n.awsConnection.TerminateInstance(*instance.InstanceId)
 			if err != nil {
-				log.Errorf("Error destroying instance %s", err)
-				break
+				log.Errorf("Unable to destroy instance %s", *instance.InstanceId)
 			}
-
-			delete(n.instanceRemoveRequests, instanceRemoveRequest.instance.GetIP())
-			err = n.setAgentsInMaintenance()
-			if err != nil {
-				log.Errorf("Error removing host %s from maintenance", err)
-				break
-			}
-			log.Infof("Instance %s destroyed", instanceRemoveRequest.instance.GetIP())
 		}
 	}
 

@@ -58,17 +58,17 @@ type Status struct {
 }
 
 type MaintenanceRequest struct {
-	Windows     []MaintenanceWindow  `json:"windows"`
+	Windows []MaintenanceWindow `json:"windows"`
 }
 
 type MaintenanceWindow struct {
-	MachinesIds    []MaintenanceMachinesId 	`json:"machine_ids"`
-	Unavailability MaintenanceUnavailability        `json:"unavailability"`
+	MachinesIds    []MaintenanceMachinesId   `json:"machine_ids"`
+	Unavailability MaintenanceUnavailability `json:"unavailability"`
 }
 
 type MaintenanceMachinesId struct {
-	Hostname 	string	`json:"hostname"`
-	Ip	 	string	`json:"ip"`
+	Hostname string `json:"hostname"`
+	Ip       string `json:"ip"`
 }
 
 type MaintenanceUnavailability struct {
@@ -76,7 +76,7 @@ type MaintenanceUnavailability struct {
 }
 
 type MaintenanceStart struct {
-	Nanoseconds int32	`json:"nanoseconds"`
+	Nanoseconds int32 `json:"nanoseconds"`
 }
 
 func (c *MesosConnection) setHostsInMaintenance(hosts map[string]string) error {
@@ -112,7 +112,7 @@ func (c *MesosConnection) getMesosTasksRecursive(tasksResponse *TasksResponse, o
 	tasksResponse.Tasks = append(tasksResponse.Tasks, tasks.Tasks...)
 
 	if len(tasks.Tasks) == 100 {
-		c.getMesosTasksRecursive(tasksResponse, offset + 100)
+		c.getMesosTasksRecursive(tasksResponse, offset+100)
 	}
 
 	return nil
@@ -144,7 +144,7 @@ func generate_template(hosts map[string]string) ([]byte, error) {
 	for host, _ := range hosts {
 		maintenanceMachinesId := MaintenanceMachinesId{
 			Hostname: host,
-			Ip: hosts[host],
+			Ip:       hosts[host],
 		}
 		maintenanceMachinesIds = append(maintenanceMachinesIds, maintenanceMachinesId)
 	}

@@ -28,11 +28,11 @@ func main() {
 	}
 
 	// Create the monitors for autoscaling groups
-	aws_conn, err := aws.NewConnection(accessKey, secretKey, region, iamRole, iamSession)
+	awsConn, err := aws.NewConnection(accessKey, secretKey, region, iamRole, iamSession)
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(aws_conn, autoscalingGroupPrefixes)
+	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes)
 
 	// Create the Mesos monitor
 	mesosConn := &mesos.MesosConnection{
@@ -41,7 +41,7 @@ func main() {
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(mesosMonitor)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor)
 	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(polling_seconds))
@@ -54,6 +54,7 @@ func main() {
 func Run(mesosMonitor *mesos.MesosMonitor, autoscalingGroups *aws.AutoscalingGroups,
 	deathNodeWatcher *deathnode.DeathNodeWatcher) {
 
+	log.Debug("New check triggered")
 	// Refresh autoscaling monitors and mesos monitor
 	autoscalingGroups.Refresh()
 	mesosMonitor.Refresh()

@@ -21,6 +21,12 @@ func (c *AwsConnectionMock) DescribeInstanceById(instanceId string) (*ec2.Instan
 	return mockResponse.(*ec2.Instance), nil
 }
 
+func (c *AwsConnectionMock) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) {
+
+	mockResponse, _ := c.replay(&[]*ec2.Instance{}, "DescribeInstancesByTag")
+	return *mockResponse.(*[]*ec2.Instance), nil
+}
+
 func (c *AwsConnectionMock) DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error) {
 
 	mockResponse, _ := c.replay(&[]*autoscaling.Group{}, "DescribeAGByName")
@@ -62,6 +68,18 @@ func (c *AwsConnectionMock) SetASGInstanceProtection(autoscalingGroupName *strin
 	return nil
 }
 
+func (c *AwsConnectionMock) SetInstanceTag(key, value, instanceId string) error {
+
+	if c.Requests == nil {
+		c.Requests = map[string][][]string{}
+	}
+
+	input_values := []string{key, value, instanceId}
+
+	c.Requests["SetInstanceTag"] = append(c.Requests["SetInstanceTag"], input_values)
+	return nil
+}
+
 func (c *AwsConnectionMock) replay(mockResponse interface{}, templateFileName string) (interface{}, error) {
 
 	records, ok := c.Records[templateFileName]
@@ -77,13 +95,13 @@ func (c *AwsConnectionMock) replay(mockResponse interface{}, templateFileName st
 
 	currentRecord := (*records)[0]
 
-	file, err := ioutil.ReadFile(getCurrentPath() + "/testdata" + "/" + currentRecord + "/" + templateFileName + ".json")
+	fileContent, err := ioutil.ReadFile(getCurrentPath() + "/testdata" + "/" + currentRecord + "/" + templateFileName + ".json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
 		os.Exit(1)
 	}
 
-	err = json.Unmarshal(file, &mockResponse)
+	err = json.Unmarshal(fileContent, &mockResponse)
 	if err != nil {
 		fmt.Printf("Error loading mock json: %v\n", err)
 		os.Exit(1)
