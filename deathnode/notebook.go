@@ -52,12 +52,6 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 	// Set instances in maintenance
 	n.setAgentsInMaintenance(instances)
 
-	// Exit if an instance was previously deleted before delayDeleteSeconds
-	if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
-		log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
-		return nil
-	}
-
 	for _, instance := range instances {
 
 		// If the instance belongs to an Autoscaling group, remove it
@@ -68,6 +62,12 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			if err != nil {
 				log.Errorf("Unable to remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
 			}
+		}
+
+		// Exit if an instance was previously deleted before delayDeleteSeconds
+		if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
+			log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
+			return nil
 		}
 
 		// If the instance have no tasks from protected frameworks, delete it

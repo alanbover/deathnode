@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Create IAM role with minimum permissions for deathnode"
+
+Parameters:
+  RoleName:
+    Description: "Name for the IAM role"
+    Type: "String"
+Resources:
+  DeathnodeRole:
+      Type: "AWS::IAM::Role"
+      Properties:
+          RoleName:
+              Ref: "RoleName"
+          AssumeRolePolicyDocument: {
+              "Version" : "2012-10-17",
+              "Statement": [ {
+                  "Effect": "Allow",
+                  "Principal": {
+                      "Service": [ "ec2.amazonaws.com" ]
+                  },
+                  "Action": [ "sts:AssumeRole" ]
+              } ]
+          }
+          Policies: [
+             {
+                "PolicyName" : "AutoscalingAccess",
+                "PolicyDocument" : {
+                   "Statement" : [
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:DescribeAutoScalingGroups"
+                      },
+                      {
+                         "Effect" : "Allow",
+                         "Resource" : "*",
+                         "Action" : "autoscaling:DetachInstances"
+                      },
+                      {
+                         "Effect" : "Allow",
+                         "Resource" : "*",
+                         "Action" : "autoscaling:UpdateAutoScalingGroup"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:SetInstanceProtection"
+                      }
+                   ]
+                }
+             },
+             {
+                "PolicyName" : "EC2Access",
+                "PolicyDocument" : {
+                   "Statement" : [
+                      {
+                         "Action" : "ec2:DescribeInstances",
+                         "Effect" : "Allow",
+                         "Resource" : "*"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "ec2:TerminateInstances"
+                      },
+                      {
+                         "Action" : "ec2:CreateTags",
+                         "Resource" : "*",
+                         "Effect" : "Allow"
+                      }
+                   ]
+                }
+             }
+          ]
+
+Outputs:
+  DeathnodeRoleArn:
+    Value: !GetAtt DeathnodeRole.Arn
