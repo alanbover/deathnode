@@ -112,8 +112,8 @@ func (a *AutoscalingGroups) GetAutoscalingNameByInstanceId(instanceId string) (s
 
 	for asgPrefix, _ := range a.monitors {
 		for _, asgGroupMonitor := range a.monitors[asgPrefix] {
-			instances := asgGroupMonitor.GetInstances()
-			for _, instanceMonitor := range *instances {
+			instances := asgGroupMonitor.GetInstancesNotMarkedToBeRemoved()
+			for _, instanceMonitor := range instances {
 				if instanceMonitor.instance.instanceId == instanceId {
 					return asgGroupMonitor.autoscaling.autoscalingGroupName, true
 				}
@@ -172,17 +172,6 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 	return nil
 }
 
-func (a *AutoscalingGroupMonitor) GetInstances() *[]InstanceMonitor {
-
-	instanceMonitor := []InstanceMonitor{}
-
-	for _, value := range a.autoscaling.instanceMonitors {
-		instanceMonitor = append(instanceMonitor, *value)
-	}
-
-	return &instanceMonitor
-}
-
 func (a *AutoscalingGroupMonitor) NumUndesiredInstances() int {
 
 	if len(a.autoscaling.instanceMonitors)-len(a.GetInstancesMarkedToBeRemoved()) > int(a.autoscaling.desiredCapacity) {
@@ -218,4 +207,16 @@ func (a *AutoscalingGroupMonitor) GetInstancesMarkedToBeRemoved() []*InstanceMon
 	}
 
 	return instancesMarkedToBeRemoved
+}
+
+func (a *AutoscalingGroupMonitor) GetInstancesNotMarkedToBeRemoved() []InstanceMonitor {
+
+	instancesNotMarkedToBeRemoved := []InstanceMonitor{}
+	for _, instanceMonitor := range a.autoscaling.instanceMonitors {
+		if !instanceMonitor.instance.markedToBeRemoved {
+			instancesNotMarkedToBeRemoved = append(instancesNotMarkedToBeRemoved, *instanceMonitor)
+		}
+	}
+
+	return instancesNotMarkedToBeRemoved
 }

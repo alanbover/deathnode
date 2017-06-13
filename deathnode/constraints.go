@@ -17,11 +17,11 @@ func newConstraint(constraintType string) (constraint, error) {
 }
 
 type constraint interface {
-	filter(autoscalingGroupMonitor *aws.AutoscalingGroupMonitor) []aws.InstanceMonitor
+	filter([]aws.InstanceMonitor) []aws.InstanceMonitor
 }
 
 type noConstraint struct{}
 
-func (c *noConstraint) filter(autoscalingGroupMonitor *aws.AutoscalingGroupMonitor) []aws.InstanceMonitor {
-	return *autoscalingGroupMonitor.GetInstances()
+func (c *noConstraint) filter(instanceMonitors []aws.InstanceMonitor) []aws.InstanceMonitor {
+	return instanceMonitors
 }

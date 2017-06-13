@@ -54,6 +54,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 
 	for _, instance := range instances {
 
+		log.Debugf("Starting process to delete instance %s", *instance.InstanceId)
 		// If the instance belongs to an Autoscaling group, remove it
 		autoscalingGroupName, found := n.autoscalingGroups.GetAutoscalingNameByInstanceId(*instance.InstanceId)
 		if found {
@@ -67,7 +68,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 		// Exit if an instance was previously deleted before delayDeleteSeconds
 		if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
 			log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
-			return nil
+			continue
 		}
 
 		// If the instance have no tasks from protected frameworks, delete it
@@ -80,7 +81,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			}
 			if n.delayDeleteSeconds != 0 {
 				n.lastDeleteTimestamp = time.Now()
-				return nil
+				continue
 			}
 		}
 	}
