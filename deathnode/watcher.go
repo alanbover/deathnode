@@ -45,7 +45,7 @@ func (y *DeathNodeWatcher) RemoveUndesiredInstances(autoscalingMonitor *aws.Auto
 	for removedInstances < numUndesiredInstances {
 		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstancesNotMarkedToBeRemoved())
 		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
-		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetIP())
+		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetInstanceId())
 		err := bestInstanceToKill.MarkToBeRemoved()
 		if err != nil {
 			log.Errorf("Unable to mark instance %s for removal", bestInstanceToKill.GetIP())

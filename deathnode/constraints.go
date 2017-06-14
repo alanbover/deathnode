@@ -17,11 +17,11 @@ func newConstraint(constraintType string) (constraint, error) {
 }
 
 type constraint interface {
-	filter([]aws.InstanceMonitor) []aws.InstanceMonitor
+	filter([]*aws.InstanceMonitor) []*aws.InstanceMonitor
 }
 
 type noConstraint struct{}
 
-func (c *noConstraint) filter(instanceMonitors []aws.InstanceMonitor) []aws.InstanceMonitor {
+func (c *noConstraint) filter(instanceMonitors []*aws.InstanceMonitor) []*aws.InstanceMonitor {
 	return instanceMonitors
 }

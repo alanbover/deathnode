@@ -84,7 +84,7 @@ func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
 		t.Fatal("Two instances should have been removed from ASG. Found nil")
 	}
 	if len(detachInstanceCall) != 2 {
-		t.Fatal("Two instances should have been removed from ASG. Found incorrect number")
+		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
 	}
 	if detachInstanceCall[0][1] == detachInstanceCall[1][1] {
 		t.Fatal("Two instance deatch has been called, but all for the same host")
@@ -153,17 +153,18 @@ func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
 			"DescribeInstanceById": &[]string{
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
+				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "two_undesired_hosts"},
-			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
+			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "two_undesired_hosts_one_removed", "two_undesired_hosts_one_removed"},
+			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts", "two_undesired_hosts_one_removed"},
 		},
 	}
 
 	mesosConn := &mesos.MesosConnectionMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default"},
-			"GetMesosTasks":      &[]string{"default", "notasks"},
+			"GetMesosFrameworks": &[]string{"default", "default", "default"},
+			"GetMesosSlaves":     &[]string{"default", "default", "default"},
+			"GetMesosTasks":      &[]string{"default", "notasks", "notasks"},
 		},
 	}
 
@@ -172,12 +173,36 @@ func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
+	detachInstanceCall := awsConn.Requests["DetachInstance"]
+	if len(detachInstanceCall) != 2 {
+		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
+	}
+
+	setTagInstanceCall := awsConn.Requests["SetInstanceTag"]
+	if len(setTagInstanceCall) != 2 {
+		t.Fatalf("Incorrect number of setTagInstanceCall calls. Actual: %s, Expected: 2", len(setTagInstanceCall))
+	}
+	if setTagInstanceCall[0][2] == setTagInstanceCall[1][2] {
+		t.Fatalf("setTagInstance called two times for the same instance id", len(setTagInstanceCall))
+	}
+
 	destroyInstanceCall := awsConn.Requests["TerminateInstance"]
 	if destroyInstanceCall == nil {
 		t.Fatal("Two instance destroy should have been called. Found nil")
 	}
 	if len(destroyInstanceCall) != 1 {
 		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 1", len(destroyInstanceCall))
+	}
+
+	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	detachInstanceCall = awsConn.Requests["DetachInstance"]
+	if len(detachInstanceCall) != 2 {
+		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
+	}
+
+	setTagInstanceCall = awsConn.Requests["SetInstanceTag"]
+	if len(setTagInstanceCall) != 2 {
+		t.Fatalf("Incorrect number of setTagInstanceCall calls. Actual: %s, Expected: 2", len(setTagInstanceCall))
 	}
 
 	time.Sleep(time.Second * 2)
@@ -233,7 +258,7 @@ func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.Me
 	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
 
 	constraintsType := "noContraint"
-	recommenderType := "firstAvailableAgent"
+	recommenderType := "smallestInstanceId"
 
 	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames)
