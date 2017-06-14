@@ -55,8 +55,13 @@ func (a *InstanceMonitor) GetIP() string {
 	return a.instance.ipAddress
 }
 
+func (a *InstanceMonitor) GetInstanceId() string {
+	return a.instance.instanceId
+}
+
 func (a *InstanceMonitor) MarkToBeRemoved() error {
 	err := a.awsConnection.SetInstanceTag(DEATH_NODE_TAG_MARK, getEpochAsString(), a.instance.instanceId)
+	a.instance.markedToBeRemoved = true
 	return err
 }
 

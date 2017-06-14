@@ -128,6 +128,8 @@ func (c *AwsConnection) DescribeInstanceById(instanceId string) (*ec2.Instance, 
 
 func (c *AwsConnection) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) {
 
+	instances := []*ec2.Instance{}
+
 	filter := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
@@ -151,7 +153,13 @@ func (c *AwsConnection) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, 
 		return []*ec2.Instance{}, nil
 	}
 
-	return response.Reservations[0].Instances, nil
+	for _, reservation := range response.Reservations {
+		for _, instance := range reservation.Instances {
+			instances = append(instances, instance)
+		}
+	}
+
+	return instances, nil
 }
 
 func (c *AwsConnection) TerminateInstance(instanceId string) error {

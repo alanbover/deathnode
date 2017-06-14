@@ -112,8 +112,8 @@ func (a *AutoscalingGroups) GetAutoscalingNameByInstanceId(instanceId string) (s
 
 	for asgPrefix, _ := range a.monitors {
 		for _, asgGroupMonitor := range a.monitors[asgPrefix] {
-			instances := asgGroupMonitor.GetInstances()
-			for _, instanceMonitor := range *instances {
+			instances := asgGroupMonitor.GetInstancesMarkedToBeRemoved()
+			for _, instanceMonitor := range instances {
 				if instanceMonitor.instance.instanceId == instanceId {
 					return asgGroupMonitor.autoscaling.autoscalingGroupName, true
 				}
@@ -172,17 +172,6 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 	return nil
 }
 
-func (a *AutoscalingGroupMonitor) GetInstances() *[]InstanceMonitor {
-
-	instanceMonitor := []InstanceMonitor{}
-
-	for _, value := range a.autoscaling.instanceMonitors {
-		instanceMonitor = append(instanceMonitor, *value)
-	}
-
-	return &instanceMonitor
-}
-
 func (a *AutoscalingGroupMonitor) NumUndesiredInstances() int {
 
 	if len(a.autoscaling.instanceMonitors)-len(a.GetInstancesMarkedToBeRemoved()) > int(a.autoscaling.desiredCapacity) {
@@ -209,13 +198,21 @@ func (a *AutoscalingGroupMonitor) RemoveInstance(instanceMonitor *InstanceMonito
 }
 
 func (a *AutoscalingGroupMonitor) GetInstancesMarkedToBeRemoved() []*InstanceMonitor {
+	return a.getInstances(true)
+}
 
-	instancesMarkedToBeRemoved := []*InstanceMonitor{}
+func (a *AutoscalingGroupMonitor) GetInstancesNotMarkedToBeRemoved() []*InstanceMonitor {
+	return a.getInstances(false)
+}
+
+func (a *AutoscalingGroupMonitor) getInstances(markedToBeRemoved bool) []*InstanceMonitor {
+
+	instancesNotMarkedToBeRemoved := []*InstanceMonitor{}
 	for _, instanceMonitor := range a.autoscaling.instanceMonitors {
-		if instanceMonitor.instance.markedToBeRemoved {
-			instancesMarkedToBeRemoved = append(instancesMarkedToBeRemoved, instanceMonitor)
+		if instanceMonitor.instance.markedToBeRemoved == markedToBeRemoved {
+			instancesNotMarkedToBeRemoved = append(instancesNotMarkedToBeRemoved, instanceMonitor)
 		}
 	}
 
-	return instancesMarkedToBeRemoved
+	return instancesNotMarkedToBeRemoved
 }

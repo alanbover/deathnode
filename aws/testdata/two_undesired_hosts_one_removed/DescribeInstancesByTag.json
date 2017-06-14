@@ -1,0 +1,7 @@
+[
+  {
+    "PrivateDnsName": "myprivatedns",
+    "PrivateIpAddress": "10.0.0.2",
+    "InstanceId": "i-446a73cf"
+  }
+]

@@ -227,7 +227,7 @@ func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 
 	awsConn := &AwsConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
+			"DescribeInstanceById": &[]string{"node_with_tag", "node_with_tag", "node_with_tag"},
 			"DescribeAGByName":     &[]string{"default"},
 		},
 	}
