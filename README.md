@@ -1,8 +1,13 @@
 # Deathnode
+
+[![Build Status](https://travis-ci.org/alanbover/deathnode.svg?branch=master)](https://travis-ci.org/alanbover/deathnode)
+[![Go Report Card](https://goreportcard.com/badge/github.com/alanbover/deathnode)](https://goreportcard.com/report/github.com/alanbover/deathnode)
+[![Coverage Status](https://coveralls.io/repos/github/alanbover/deathnode/badge.svg?branch=enable_travis_and_improve_doc)](https://coveralls.io/github/alanbover/deathnode?branch=enable_travis_and_improve_doc)
+
+## Purpose
 Gracefully Mesos agent destroy system for AWS Autoscaling.
 
-### What's does it do?
-Deathnode ensures that the agents from an Autoscaling group in AWS are destroyed only after they have no running tasks, allowing to implement scale-in or red/black deployments with no impact to the customers.
+Deathnode ensures that agents from an Autoscaling group in AWS are destroyed only after they have being drained, allowing to implement scale-in or red/black deployments with no impact to the customers.
 
 It's implementation is based using:
 
@@ -19,7 +24,13 @@ Deathnode monitors the autoscaling groups from the Mesos Agents. Whenever it det
 
 Then deathnode will keep monitoring this agent, destroying it once it's drained.
 
-### Build
+## Usage
+Here you can find an example of usage:
+```
+./deathnode -autoscalingGroupName ${ASG_NAME} -delayDelete 300 -mesosUrl ${MESOS_URL} -polling 60 -protectedFrameworks Eremetic -debug
+```
+
+## Build
 To execute the test, run:
 ```
 make test
@@ -35,8 +46,8 @@ To build a docker image, run:
 DOCKERTAG="version" make docker
 ```
 
-### Limitations
-Deathnode is still in development, and has not being tested in a real-production environment. 
+## Limitations
+Deathnode is still in development, and test in a real-production environment have just started.
 
 * Most of the Mesos frameworks doesn't implement Maintenance primitives.
 * Maintenance primitives are not available through Mesos native integration
