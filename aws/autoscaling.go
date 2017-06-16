@@ -18,7 +18,6 @@ type AutoscalingGroupMonitor struct {
 
 type autoscalingGroup struct {
 	autoscalingGroupName string
-	launchConfiguration  string
 	desiredCapacity      int64
 	instanceMonitors     map[string]*InstanceMonitor
 }
@@ -43,7 +42,6 @@ func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalin
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
 			autoscalingGroupName: autoscalingGroupName,
-			launchConfiguration:  "",
 			desiredCapacity:      0,
 			instanceMonitors:     map[string]*InstanceMonitor{},
 		},
@@ -141,14 +139,13 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 		}
 	}
 
-	a.autoscaling.launchConfiguration = *autoscalingGroup.LaunchConfigurationName
 	a.autoscaling.desiredCapacity = *autoscalingGroup.DesiredCapacity
 
 	for _, instance := range autoscalingGroup.Instances {
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
 		if !ok {
 			log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
-			instanceMonitor, _ := NewInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.LaunchConfigurationName, *instance.InstanceId)
+			instanceMonitor, _ := NewInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId)
 			a.autoscaling.instanceMonitors[*instance.InstanceId] = instanceMonitor
 		}
 	}

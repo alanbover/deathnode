@@ -12,7 +12,7 @@ func TestNewInstanceMonitor(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "launchconfid", "i-249b35ae")
+	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
 
 	if instanceMonitor == nil {
 		t.Fatal("nil InstanceMonitor")
@@ -35,7 +35,7 @@ func TestTerminateInstance(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "launchconfid", "i-249b35ae")
+	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
 	instanceMonitor.Destroy()
 
 	callArguments := conn.Requests["TerminateInstance"]
@@ -53,7 +53,7 @@ func TestSetInstanceTag(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "launchconfid", "i-249b35ae")
+	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
 	instanceMonitor.MarkToBeRemoved()
 
 	callArguments := conn.Requests["SetInstanceTag"]
@@ -75,7 +75,7 @@ func TestInstanceMarkToBeRemoved(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "launchconfid", "i-249b35ae")
+	instanceMonitor, _ := NewInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
 
 	if !instanceMonitor.instance.markedToBeRemoved {
 		t.Fatal("wrong markedToBeRemoved value")
