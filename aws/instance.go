@@ -21,7 +21,7 @@ type InstanceMonitor struct {
 	awsConnection AwsConnectionInterface
 }
 
-func NewInstanceMonitor(conn AwsConnectionInterface, autoscalingGroupId, launchConfiguration, instanceId string) (*InstanceMonitor, error) {
+func NewInstanceMonitor(conn AwsConnectionInterface, autoscalingGroupId, instanceId string) (*InstanceMonitor, error) {
 
 	response, err := conn.DescribeInstanceById(instanceId)
 
@@ -32,7 +32,6 @@ func NewInstanceMonitor(conn AwsConnectionInterface, autoscalingGroupId, launchC
 	return &InstanceMonitor{
 		instance: &Instance{
 			autoscalingGroupId:  autoscalingGroupId,
-			launchConfiguration: launchConfiguration,
 			ipAddress:           *response.PrivateIpAddress,
 			instanceId:          instanceId,
 			markedToBeRemoved:   isMarkedToBeRemoved(response.Tags),
