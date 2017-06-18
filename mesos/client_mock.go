@@ -7,27 +7,28 @@ import (
 	"os"
 )
 
-type MesosConnectionMock struct {
+// ClientMock implements mesos.ClientInterface for testing purposes
+type ClientMock struct {
 	Records  map[string]*[]string
 	Requests map[string]*[]string
 }
 
-func (c *MesosConnectionMock) getMesosTasks() (*TasksResponse, error) {
+func (c *ClientMock) getMesosTasks() (*TasksResponse, error) {
 	mockResponse, _ := c.replay(&TasksResponse{}, "GetMesosTasks")
 	return mockResponse.(*TasksResponse), nil
 }
 
-func (c *MesosConnectionMock) getMesosFrameworks() (*FrameworksResponse, error) {
+func (c *ClientMock) getMesosFrameworks() (*FrameworksResponse, error) {
 	mockResponse, _ := c.replay(&FrameworksResponse{}, "GetMesosFrameworks")
 	return mockResponse.(*FrameworksResponse), nil
 }
 
-func (c *MesosConnectionMock) getMesosSlaves() (*SlavesResponse, error) {
+func (c *ClientMock) getMesosSlaves() (*SlavesResponse, error) {
 	mockResponse, _ := c.replay(&SlavesResponse{}, "GetMesosSlaves")
 	return mockResponse.(*SlavesResponse), nil
 }
 
-func (c *MesosConnectionMock) setHostsInMaintenance(hosts map[string]string) error {
+func (c *ClientMock) setHostsInMaintenance(hosts map[string]string) error {
 	if c.Requests == nil {
 		c.Requests = map[string]*[]string{}
 	}
@@ -42,7 +43,7 @@ func (c *MesosConnectionMock) setHostsInMaintenance(hosts map[string]string) err
 	return nil
 }
 
-func (c *MesosConnectionMock) replay(mockResponse interface{}, templateFileName string) (interface{}, error) {
+func (c *ClientMock) replay(mockResponse interface{}, templateFileName string) (interface{}, error) {
 
 	records, ok := c.Records[templateFileName]
 	if !ok {

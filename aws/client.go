@@ -8,22 +8,25 @@ import (
 	"strings"
 )
 
-type AwsConnection struct {
+// Client holds the AWS SDK objects for call AWS API
+type Client struct {
 	ec2         *ec2.EC2
 	autoscaling *autoscaling.AutoScaling
 }
 
-type AwsConnectionInterface interface {
-	DescribeInstanceById(instanceId string) (*ec2.Instance, error)
+// ClientInterface implements a client with all required operations against AWS API
+type ClientInterface interface {
+	DescribeInstanceByID(instanceID string) (*ec2.Instance, error)
 	DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error)
 	DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error)
-	DetachInstance(autoscalingGroupName string, instanceId string) error
-	TerminateInstance(instanceId string) error
-	SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error
-	SetInstanceTag(key, value, instanceId string) error
+	DetachInstance(autoscalingGroupName string, instanceID string) error
+	TerminateInstance(instanceID string) error
+	SetASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error
+	SetInstanceTag(key, value, instanceID string) error
 }
 
-func NewConnection(accessKey, secretKey, region, iamRole, iamSession string) (*AwsConnection, error) {
+// NewClient returns a new aws.client
+func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Client, error) {
 
 	session, err := newAwsSession(&sessionParameters{
 		accessKey:  accessKey,
@@ -37,13 +40,14 @@ func NewConnection(accessKey, secretKey, region, iamRole, iamSession string) (*A
 		fmt.Print("Error trying to create AWS session. ", err)
 	}
 
-	return &AwsConnection{
+	return &Client{
 		ec2:         ec2.New(session),
 		autoscaling: autoscaling.New(session),
 	}, nil
 }
 
-func (c *AwsConnection) DescribeAGByName(autoscalingGroupPrefix string) ([]*autoscaling.Group, error) {
+// DescribeAGByName returns all autoscaling groups that matches a certain prefix
+func (c *Client) DescribeAGByName(autoscalingGroupPrefix string) ([]*autoscaling.Group, error) {
 
 	autoscalingGroupList := []*autoscaling.Group{}
 
@@ -67,7 +71,7 @@ func (c *AwsConnection) DescribeAGByName(autoscalingGroupPrefix string) ([]*auto
 	return autoscalingGroupList, nil
 }
 
-func (c *AwsConnection) describeAGByNameWithToken(nextToken *string) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
+func (c *Client) describeAGByNameWithToken(nextToken *string) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 
 	filter := &autoscaling.DescribeAutoScalingGroupsInput{
 		NextToken: nextToken,
@@ -92,9 +96,10 @@ func appendASGByPrefix(asgResponse, asgToFilter []*autoscaling.Group, prefix str
 	return asgResponse
 }
 
-func (c *AwsConnection) DetachInstance(autoscalingGroupName, instanceId string) error {
+// DetachInstance removes an instance from an autoscaling group
+func (c *Client) DetachInstance(autoscalingGroupName, instanceID string) error {
 
-	instanceIds := []*string{&instanceId}
+	instanceIds := []*string{&instanceID}
 	shouldDecrementDesiredCapacity := false
 
 	detachInstancesInput := &autoscaling.DetachInstancesInput{
@@ -108,12 +113,13 @@ func (c *AwsConnection) DetachInstance(autoscalingGroupName, instanceId string) 
 	return nil
 }
 
-func (c *AwsConnection) DescribeInstanceById(instanceId string) (*ec2.Instance, error) {
+// DescribeInstanceByID returns the instance that matches an instanceID
+func (c *Client) DescribeInstanceByID(instanceID string) (*ec2.Instance, error) {
 
 	filter := &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("instance-id"),
-			Values: aws.StringSlice([]string{instanceId}),
+			Values: aws.StringSlice([]string{instanceID}),
 		}},
 	}
 
@@ -126,7 +132,8 @@ func (c *AwsConnection) DescribeInstanceById(instanceId string) (*ec2.Instance, 
 	return response.Reservations[0].Instances[0], nil
 }
 
-func (c *AwsConnection) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) {
+// DescribeInstancesByTag return all instances with a certain tag set
+func (c *Client) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) {
 
 	instances := []*ec2.Instance{}
 
@@ -162,9 +169,10 @@ func (c *AwsConnection) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, 
 	return instances, nil
 }
 
-func (c *AwsConnection) TerminateInstance(instanceId string) error {
+// TerminateInstance shutdown and deletes an instance in AWS
+func (c *Client) TerminateInstance(instanceID string) error {
 
-	instanceIds := []*string{&instanceId}
+	instanceIds := []*string{&instanceID}
 
 	terminateInstancesInput := &ec2.TerminateInstancesInput{
 		InstanceIds: instanceIds,
@@ -175,7 +183,8 @@ func (c *AwsConnection) TerminateInstance(instanceId string) error {
 	return err
 }
 
-func (c *AwsConnection) SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
+// SetASGInstanceProtection set an autoscalingGroup and all it's instances with ProtectFromScaleIn flag
+func (c *Client) SetASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
 
 	instancesProtectedFromScaleIn := true
 	updateAutoScalingGroupInput := &autoscaling.UpdateAutoScalingGroupInput{
@@ -201,7 +210,8 @@ func (c *AwsConnection) SetASGInstanceProtection(autoscalingGroupName *string, i
 	return err
 }
 
-func (c *AwsConnection) SetInstanceTag(key, value, instanceId string) error {
+// SetInstanceTag set a tag with <key,value> to an AWS instance
+func (c *Client) SetInstanceTag(key, value, instanceID string) error {
 
 	tag := &ec2.Tag{
 		Key:   aws.String(key),
@@ -209,7 +219,7 @@ func (c *AwsConnection) SetInstanceTag(key, value, instanceId string) error {
 	}
 
 	_, err := c.ec2.CreateTags(&ec2.CreateTagsInput{
-		Resources: []*string{aws.String(instanceId)},
+		Resources: []*string{aws.String(instanceID)},
 		Tags:      []*ec2.Tag{tag},
 	})
 

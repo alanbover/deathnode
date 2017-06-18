@@ -11,15 +11,17 @@ import (
 	"time"
 )
 
+// Notebook stores the necessary information for deal with instances that should be deleted
 type Notebook struct {
-	mesosMonitor        *mesos.MesosMonitor
-	awsConnection       aws.AwsConnectionInterface
+	mesosMonitor        *mesos.Monitor
+	awsConnection       aws.ClientInterface
 	autoscalingGroups   *aws.AutoscalingGroups
 	delayDeleteSeconds  int
 	lastDeleteTimestamp time.Time
 }
 
-func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.AwsConnectionInterface, mesosMonitor *mesos.MesosMonitor, delayDeleteSeconds int) *Notebook {
+// NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
+func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.ClientInterface, mesosMonitor *mesos.Monitor, delayDeleteSeconds int) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,
@@ -37,15 +39,19 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 		hosts[*instance.PrivateDnsName] = *instance.PrivateIpAddress
 	}
 
-	return n.mesosMonitor.SetMesosSlavesInMaintenance(hosts)
+	return n.mesosMonitor.SetMesosAgentsInMaintenance(hosts)
 }
 
+// DestroyInstancesAttempt iterates around all instances marked to be deleted, and:
+// - set them in maintenance
+// - remove them from it's ASG
+// - remove the instance if there is no tasks running from the protected frameworks
 func (n *Notebook) DestroyInstancesAttempt() error {
 
 	// Get instances marked for removal
-	instances, err := n.awsConnection.DescribeInstancesByTag(aws.DEATH_NODE_TAG_MARK)
+	instances, err := n.awsConnection.DescribeInstancesByTag(aws.DeathNodeTagMark)
 	if err != nil {
-		log.Debugf("Unable to find instances with %s tag", aws.DEATH_NODE_TAG_MARK)
+		log.Debugf("Unable to find instances with %s tag", aws.DeathNodeTagMark)
 		return err
 	}
 
@@ -56,7 +62,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 
 		log.Debugf("Starting process to delete instance %s", *instance.InstanceId)
 		// If the instance belongs to an Autoscaling group, remove it
-		autoscalingGroupName, found := n.autoscalingGroups.GetAutoscalingNameByInstanceId(*instance.InstanceId)
+		autoscalingGroupName, found := n.autoscalingGroups.GetAutoscalingNameByInstanceID(*instance.InstanceId)
 		if found {
 			log.Infof("Remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
 			err := n.awsConnection.DetachInstance(autoscalingGroupName, *instance.InstanceId)
@@ -65,14 +71,14 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			}
 		}
 
-		// Exit if an instance was previously deleted before delayDeleteSeconds
+		// Next iteration if an instance was previously deleted before delayDeleteSeconds
 		if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
 			log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
 			continue
 		}
 
 		// If the instance have no tasks from protected frameworks, delete it
-		hasFrameworks := n.mesosMonitor.DoesSlaveHasFrameworks(*instance.PrivateIpAddress)
+		hasFrameworks := n.mesosMonitor.DoesAgentHasProtectedFrameworksTasks(*instance.PrivateIpAddress)
 		if !hasFrameworks {
 			log.Infof("Destroy instance %s", *instance.InstanceId)
 			err := n.awsConnection.TerminateInstance(*instance.InstanceId)

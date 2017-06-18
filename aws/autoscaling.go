@@ -5,16 +5,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// monitors is a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
+// AutoscalingGroups holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
 type AutoscalingGroups struct {
 	monitors      map[string]map[string]*AutoscalingGroupMonitor
-	awsConnection AwsConnectionInterface
+	awsConnection ClientInterface
 }
 
+// AutoscalingGroupMonitor monitors an AWS autoscaling group, caching it's data
 type AutoscalingGroupMonitor struct {
 	autoscaling   *autoscalingGroup
-	awsConnection AwsConnectionInterface
+	awsConnection ClientInterface
 }
+
 
 type autoscalingGroup struct {
 	autoscalingGroupName string
@@ -22,7 +24,8 @@ type autoscalingGroup struct {
 	instanceMonitors     map[string]*InstanceMonitor
 }
 
-func NewAutoscalingGroups(awsConnection AwsConnectionInterface, autoscalingGroupNameList []string) (*AutoscalingGroups, error) {
+// NewAutoscalingGroups returns an AutoscalingGroups object
+func NewAutoscalingGroups(awsConnection ClientInterface, autoscalingGroupNameList []string) (*AutoscalingGroups, error) {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
 	for _, autoscalingGroupName := range autoscalingGroupNameList {
@@ -37,7 +40,8 @@ func NewAutoscalingGroups(awsConnection AwsConnectionInterface, autoscalingGroup
 	return autoscalingGroups, nil
 }
 
-func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalingGroupName string) (*AutoscalingGroupMonitor, error) {
+// NewAutoscalingGroupMonitor returns a "empty" AutoscalingGroupMonitor object
+func newAutoscalingGroupMonitor(awsConnection ClientInterface, autoscalingGroupName string) (*AutoscalingGroupMonitor, error) {
 
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
@@ -49,9 +53,11 @@ func NewAutoscalingGroupMonitor(awsConnection AwsConnectionInterface, autoscalin
 	}, nil
 }
 
+// Refresh updates autoscalingGroups caching all AWS autoscaling groups given the N prefixes
+// provided when AutoscalingGroups was created
 func (a *AutoscalingGroups) Refresh() error {
 
-	for autoscalingGroupPrefix, _ := range a.monitors {
+	for autoscalingGroupPrefix := range a.monitors {
 
 		response, err := a.awsConnection.DescribeAGByName(autoscalingGroupPrefix)
 		if err != nil {
@@ -65,17 +71,17 @@ func (a *AutoscalingGroups) Refresh() error {
 		for _, autoscalingGroupResponse := range response {
 			_, ok := a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName]
 			if ok {
-				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName].Refresh(autoscalingGroupResponse)
+				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName].refresh(autoscalingGroupResponse)
 			} else {
 				log.Infof("Found new autoscalingGroup to monitor: %s", *autoscalingGroupResponse.AutoScalingGroupName)
-				autoscalingGroupMonitor, _ := NewAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName)
-				autoscalingGroupMonitor.Refresh(autoscalingGroupResponse)
+				autoscalingGroupMonitor, _ := newAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName)
+				autoscalingGroupMonitor.refresh(autoscalingGroupResponse)
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName] = autoscalingGroupMonitor
 			}
 		}
 
 		var found bool
-		for autoscalingGroupName, _ := range a.monitors[autoscalingGroupPrefix] {
+		for autoscalingGroupName := range a.monitors[autoscalingGroupPrefix] {
 			found = false
 			for _, autoscalingGroupResponse := range response {
 				if autoscalingGroupName == *autoscalingGroupResponse.AutoScalingGroupName {
@@ -93,6 +99,7 @@ func (a *AutoscalingGroups) Refresh() error {
 	return nil
 }
 
+// GetMonitors returns all AutoscalingGroupMonitors cached in AutoscalingGroups
 func (a *AutoscalingGroups) GetMonitors() []*AutoscalingGroupMonitor {
 
 	var monitors = []*AutoscalingGroupMonitor{}
@@ -106,13 +113,14 @@ func (a *AutoscalingGroups) GetMonitors() []*AutoscalingGroupMonitor {
 	return monitors
 }
 
-func (a *AutoscalingGroups) GetAutoscalingNameByInstanceId(instanceId string) (string, bool) {
+// GetAutoscalingNameByInstanceID returns the AutoscalingGroupName of the AutoscalingGroup that holds a certain instanceId
+func (a *AutoscalingGroups) GetAutoscalingNameByInstanceID(instanceID string) (string, bool) {
 
-	for asgPrefix, _ := range a.monitors {
+	for asgPrefix := range a.monitors {
 		for _, asgGroupMonitor := range a.monitors[asgPrefix] {
 			instances := asgGroupMonitor.GetInstancesMarkedToBeRemoved()
 			for _, instanceMonitor := range instances {
-				if instanceMonitor.instance.instanceId == instanceId {
+				if instanceMonitor.instance.instanceID == instanceID {
 					return asgGroupMonitor.autoscaling.autoscalingGroupName, true
 				}
 			}
@@ -123,7 +131,8 @@ func (a *AutoscalingGroups) GetAutoscalingNameByInstanceId(instanceId string) (s
 
 }
 
-func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) error {
+// Refresh updates the cached autoscalingGroup, updating it's values and it's instances
+func (a *AutoscalingGroupMonitor) refresh(autoscalingGroup *autoscaling.Group) error {
 
 	if !*autoscalingGroup.NewInstancesProtectedFromScaleIn {
 		log.Infof("Setting autoscaling %s and it's instances scaleInProtection flag", *autoscalingGroup.AutoScalingGroupName)
@@ -145,23 +154,23 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
 		if !ok {
 			log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
-			instanceMonitor, _ := NewInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId)
+			instanceMonitor, _ := newInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId)
 			a.autoscaling.instanceMonitors[*instance.InstanceId] = instanceMonitor
 		}
 	}
 
 	var found bool
-	for instanceId, _ := range a.autoscaling.instanceMonitors {
+	for instanceID := range a.autoscaling.instanceMonitors {
 		found = false
 		for _, instance := range autoscalingGroup.Instances {
-			if *instance.InstanceId == instanceId {
+			if *instance.InstanceId == instanceID {
 				found = true
 				break
 			}
 		}
 		if !found {
-			log.Debugf("Instance %s has dissapeared from ASG %s. Stop monitoring it", instanceId, a.autoscaling.autoscalingGroupName)
-			delete(a.autoscaling.instanceMonitors, instanceId)
+			log.Debugf("Instance %s has disappeared from ASG %s. Stop monitoring it", instanceID, a.autoscaling.autoscalingGroupName)
+			delete(a.autoscaling.instanceMonitors, instanceID)
 		}
 
 	}
@@ -169,6 +178,7 @@ func (a *AutoscalingGroupMonitor) Refresh(autoscalingGroup *autoscaling.Group) e
 	return nil
 }
 
+// NumUndesiredInstances return the number of instances to be removed from the AutoscalingGroup
 func (a *AutoscalingGroupMonitor) NumUndesiredInstances() int {
 
 	if len(a.autoscaling.instanceMonitors)-len(a.GetInstancesMarkedToBeRemoved()) > int(a.autoscaling.desiredCapacity) {
@@ -178,26 +188,20 @@ func (a *AutoscalingGroupMonitor) NumUndesiredInstances() int {
 	return 0
 }
 
-func (a *AutoscalingGroupMonitor) hasInstance(instanceId string) bool {
-
-	for _, instanceMonitor := range a.autoscaling.instanceMonitors {
-		if instanceMonitor.instance.instanceId == instanceId {
-			return true
-		}
-	}
-
-	return false
-}
-
+// RemoveInstance removes the instanceId from the AutoscalingGroupMonitor cache
 func (a *AutoscalingGroupMonitor) RemoveInstance(instanceMonitor *InstanceMonitor) {
 
-	delete(a.autoscaling.instanceMonitors, instanceMonitor.instance.instanceId)
+	delete(a.autoscaling.instanceMonitors, instanceMonitor.instance.instanceID)
 }
 
+// GetInstancesMarkedToBeRemoved return the instances in AutoscalingGroupMonitor cache that
+// do have the deathnode mark
 func (a *AutoscalingGroupMonitor) GetInstancesMarkedToBeRemoved() []*InstanceMonitor {
 	return a.getInstances(true)
 }
 
+// GetInstancesNotMarkedToBeRemoved return the instances in AutoscalingGroupMonitor cache that
+// doesn't have the deathnode mark
 func (a *AutoscalingGroupMonitor) GetInstancesNotMarkedToBeRemoved() []*InstanceMonitor {
 	return a.getInstances(false)
 }

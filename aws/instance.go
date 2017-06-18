@@ -6,60 +6,57 @@ import (
 	"time"
 )
 
-const DEATH_NODE_TAG_MARK = "DEATH_NODE_MARK"
+// DeathNodeTagMark holds the value for the TAG to mark instances to be deleted
+const DeathNodeTagMark = "DEATH_NODE_MARK"
 
-type Instance struct {
-	autoscalingGroupId  string
+type instance struct {
+	autoscalingGroupID  string
 	launchConfiguration string
 	ipAddress           string
-	instanceId          string
+	instanceID          string
 	markedToBeRemoved   bool
 }
 
+// InstanceMonitor monitors an AWS instance
 type InstanceMonitor struct {
-	instance      *Instance
-	awsConnection AwsConnectionInterface
+	instance      *instance
+	awsConnection ClientInterface
 }
 
-func NewInstanceMonitor(conn AwsConnectionInterface, autoscalingGroupId, instanceId string) (*InstanceMonitor, error) {
+func newInstanceMonitor(conn ClientInterface, autoscalingGroupID, instanceID string) (*InstanceMonitor, error) {
 
-	response, err := conn.DescribeInstanceById(instanceId)
+	response, err := conn.DescribeInstanceByID(instanceID)
 
 	if err != nil {
 		return &InstanceMonitor{}, err
 	}
 
 	return &InstanceMonitor{
-		instance: &Instance{
-			autoscalingGroupId:  autoscalingGroupId,
+		instance: &instance{
+			autoscalingGroupID:  autoscalingGroupID,
 			ipAddress:           *response.PrivateIpAddress,
-			instanceId:          instanceId,
+			instanceID:          instanceID,
 			markedToBeRemoved:   isMarkedToBeRemoved(response.Tags),
 		},
 		awsConnection: conn,
 	}, nil
 }
 
-func (a *InstanceMonitor) Destroy() error {
-	err := a.awsConnection.TerminateInstance(a.instance.instanceId)
-	return err
-}
-
-func (a *InstanceMonitor) RemoveFromAutoscalingGroup() error {
-	err := a.awsConnection.DetachInstance(a.instance.autoscalingGroupId, a.instance.instanceId)
-	return err
-}
-
+// GetIP returns the private IP of the AWS instance
 func (a *InstanceMonitor) GetIP() string {
 	return a.instance.ipAddress
 }
 
-func (a *InstanceMonitor) GetInstanceId() string {
-	return a.instance.instanceId
+// GetInstanceID returns the instanceId of the instance being monitored
+func (a *InstanceMonitor) GetInstanceID() string {
+	return a.instance.instanceID
 }
 
+// MarkToBeRemoved sets a tag for the instance with:
+// Key: valueOf(DEATH_NODE_TAG_MARK)
+// Value: Current timestamp (epoch)
 func (a *InstanceMonitor) MarkToBeRemoved() error {
-	err := a.awsConnection.SetInstanceTag(DEATH_NODE_TAG_MARK, getEpochAsString(), a.instance.instanceId)
+	err := a.awsConnection.SetInstanceTag(DeathNodeTagMark, getEpochAsString(), a.instance.instanceID)
 	a.instance.markedToBeRemoved = true
 	return err
 }
@@ -70,7 +67,7 @@ func getEpochAsString() string {
 
 func isMarkedToBeRemoved(tags []*ec2.Tag) bool {
 	for _, tag := range tags {
-		if DEATH_NODE_TAG_MARK == *tag.Key {
+		if DeathNodeTagMark == *tag.Key {
 			return true
 		}
 	}

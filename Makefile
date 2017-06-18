@@ -16,3 +16,9 @@ test:
 
 clean:
 	rm -rf docker/dist
+
+lint:
+	golint mesos/
+	golint aws/
+	golint deathnode/
+
