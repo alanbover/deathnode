@@ -6,10 +6,10 @@ import (
 
 func TestNewAutoscalingGroupMonitor(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
-			"DescribeAGByName":     &[]string{"default"},
+			"DescribeInstanceById": {"default", "default", "default"},
+			"DescribeAGByName":     {"default"},
 		},
 	}
 
@@ -37,10 +37,10 @@ func TestNewAutoscalingGroupMonitor(t *testing.T) {
 
 func TestNumUndesiredASGinstances(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
-			"DescribeAGByName":     &[]string{"one_undesired_host"},
+			"DescribeInstanceById": {"default", "default", "default"},
+			"DescribeAGByName":     {"one_undesired_host"},
 		},
 	}
 
@@ -56,10 +56,10 @@ func TestNumUndesiredASGinstances(t *testing.T) {
 
 func TestNewAutoscalingGroups(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
-			"DescribeAGByName":     &[]string{"default"},
+			"DescribeInstanceById": {"default", "default", "default"},
+			"DescribeAGByName":     {"default"},
 		},
 	}
 
@@ -72,35 +72,12 @@ func TestNewAutoscalingGroups(t *testing.T) {
 	}
 }
 
-func TestRemoveInstanceFromAutoscalingGroup(t *testing.T) {
-
-	awsConn := &AwsConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
-			"DescribeAGByName":     &[]string{"default"},
-		},
-	}
-
-	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
-	autoscalingGroups.Refresh()
-
-	instanceMonitors := (autoscalingGroups.GetMonitors())[0].autoscaling.instanceMonitors
-	instanceMonitors["i-34719eb8"].RemoveFromAutoscalingGroup()
-
-	callArguments := awsConn.Requests["DetachInstance"]
-
-	if (callArguments)[0][0] != "some-Autoscaling-Group" || (callArguments)[0][1] != "i-34719eb8" {
-		t.Fatal("Incorrect parameters when calling RemoveFromAutoscalingGroup")
-	}
-}
-
 func TestRefresh(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default", "default", "default", "default"},
-			"DescribeAGByName":     &[]string{"default", "refresh"},
+			"DescribeInstanceById": {"default", "default", "default", "default", "default", "default"},
+			"DescribeAGByName":     {"default", "refresh"},
 		},
 	}
 
@@ -115,10 +92,10 @@ func TestRefresh(t *testing.T) {
 		t.Fatal("Incorrect number of elements after refresh()")
 	}
 
-	expectedInstanceIds := []string{"i-34719eb8", "i-777a73cf", "i-666ca923"}
+	expectedInstanceIDs := []string{"i-34719eb8", "i-777a73cf", "i-666ca923"}
 
-	for _, instanceId := range expectedInstanceIds {
-		_, ok := autoscalingGroup.autoscaling.instanceMonitors[instanceId]
+	for _, instanceID := range expectedInstanceIDs {
+		_, ok := autoscalingGroup.autoscaling.instanceMonitors[instanceID]
 		if !ok {
 			t.Fatal("Incorrect instanceId found after refresh()")
 		}
@@ -131,10 +108,10 @@ func TestRefresh(t *testing.T) {
 
 func TestSetInstanceProtection(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"default", "default", "default"},
-			"DescribeAGByName":     &[]string{"instance_profile_disabled"},
+			"DescribeInstanceById": {"default", "default", "default"},
+			"DescribeAGByName":     {"instance_profile_disabled"},
 		},
 	}
 
@@ -163,13 +140,13 @@ func TestSetInstanceProtection(t *testing.T) {
 
 func TestTwoAutoscalingMonitors(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"default", "default", "default",
 				"default", "default", "default",
 			},
-			"DescribeAGByName": &[]string{"default", "two_asg"},
+			"DescribeAGByName": {"default", "two_asg"},
 		},
 	}
 
@@ -200,14 +177,14 @@ func TestTwoAutoscalingMonitors(t *testing.T) {
 
 func TestRemoveAutoscalingGroup(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"default", "default", "default",
 				"default", "default", "default",
 				"default", "default", "default",
 			},
-			"DescribeAGByName": &[]string{"default", "two_asg", "default"},
+			"DescribeAGByName": {"default", "two_asg", "default"},
 		},
 	}
 
@@ -225,10 +202,10 @@ func TestRemoveAutoscalingGroup(t *testing.T) {
 
 func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 
-	awsConn := &AwsConnectionMock{
+	awsConn := &ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{"node_with_tag", "node_with_tag", "node_with_tag"},
-			"DescribeAGByName":     &[]string{"default"},
+			"DescribeInstanceById": {"node_with_tag", "node_with_tag", "node_with_tag"},
+			"DescribeAGByName":     {"default"},
 		},
 	}
 
@@ -236,16 +213,16 @@ func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
 	autoscalingGroups.Refresh()
 
-	asgId, _ := autoscalingGroups.GetAutoscalingNameByInstanceId("i-34719eb8")
+	asgID, _ := autoscalingGroups.GetAutoscalingNameByInstanceID("i-34719eb8")
 
-	if asgId != "some-Autoscaling-Group" {
-		t.Errorf("Expected : [%s] Found: [%s]", "some-Autoscaling-Group", asgId)
+	if asgID != "some-Autoscaling-Group" {
+		t.Errorf("Expected : [%s] Found: [%s]", "some-Autoscaling-Group", asgID)
 	}
 
-	_, found := autoscalingGroups.GetAutoscalingNameByInstanceId("i-doesntexist")
+	_, found := autoscalingGroups.GetAutoscalingNameByInstanceID("i-doesntexist")
 
 	if found {
-		t.Errorf("Expected : [%b] Found: [%s]", "false", found)
+		t.Errorf("Expected : [%b] Found: [%s]", found, "false")
 	}
 
 }

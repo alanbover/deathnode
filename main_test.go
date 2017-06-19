@@ -13,29 +13,29 @@ func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
-	awsConn := &aws.AwsConnectionMock{
+	awsConn := &aws.ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "one_undesired_host"},
-			"DescribeAGByName":       &[]string{"default", "one_undesired_host"},
+			"DescribeInstancesByTag": {"default", "one_undesired_host"},
+			"DescribeAGByName":       {"default", "one_undesired_host"},
 		},
 	}
 
-	mesosConn := &mesos.MesosConnectionMock{
+	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default"},
-			"GetMesosTasks":      &[]string{"default", "default"},
+			"GetMesosFrameworks": {"default", "default"},
+			"GetMesosSlaves":     {"default", "default"},
+			"GetMesosTasks":      {"default", "default"},
 		},
 	}
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall == nil {
@@ -55,29 +55,29 @@ func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
-	awsConn := &aws.AwsConnectionMock{
+	awsConn := &aws.ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts"},
-			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
+			"DescribeInstancesByTag": {"default", "two_undesired_hosts"},
+			"DescribeAGByName":       {"default", "two_undesired_hosts"},
 		},
 	}
 
-	mesosConn := &mesos.MesosConnectionMock{
+	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default"},
-			"GetMesosTasks":      &[]string{"default", "default"},
+			"GetMesosFrameworks": {"default", "default"},
+			"GetMesosSlaves":     {"default", "default"},
+			"GetMesosTasks":      {"default", "default"},
 		},
 	}
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall == nil {
@@ -99,29 +99,29 @@ func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
-	awsConn := &aws.AwsConnectionMock{
+	awsConn := &aws.ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "default"},
-			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts"},
+			"DescribeInstancesByTag": {"default", "two_undesired_hosts", "default"},
+			"DescribeAGByName":       {"default", "two_undesired_hosts"},
 		},
 	}
 
-	mesosConn := &mesos.MesosConnectionMock{
+	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default"},
-			"GetMesosTasks":      &[]string{"default", "notasks"},
+			"GetMesosFrameworks": {"default", "default"},
+			"GetMesosSlaves":     {"default", "default"},
+			"GetMesosTasks":      {"default", "notasks"},
 		},
 	}
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn, 0)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	destroyInstanceCall := awsConn.Requests["TerminateInstance"]
 	if destroyInstanceCall == nil {
@@ -148,30 +148,30 @@ func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
-	awsConn := &aws.AwsConnectionMock{
+	awsConn := &aws.ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "two_undesired_hosts", "two_undesired_hosts_one_removed", "two_undesired_hosts_one_removed"},
-			"DescribeAGByName":       &[]string{"default", "two_undesired_hosts", "two_undesired_hosts_one_removed"},
+			"DescribeInstancesByTag": {"default", "two_undesired_hosts", "two_undesired_hosts_one_removed", "two_undesired_hosts_one_removed"},
+			"DescribeAGByName":       {"default", "two_undesired_hosts", "two_undesired_hosts_one_removed"},
 		},
 	}
 
-	mesosConn := &mesos.MesosConnectionMock{
+	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default", "default"},
-			"GetMesosTasks":      &[]string{"default", "notasks", "notasks"},
+			"GetMesosFrameworks": {"default", "default", "default"},
+			"GetMesosSlaves":     {"default", "default", "default"},
+			"GetMesosTasks":      {"default", "notasks", "notasks"},
 		},
 	}
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook := prepareRunParameters(awsConn, mesosConn, 1)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if len(detachInstanceCall) != 2 {
@@ -183,7 +183,7 @@ func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
 		t.Fatalf("Incorrect number of setTagInstanceCall calls. Actual: %s, Expected: 2", len(setTagInstanceCall))
 	}
 	if setTagInstanceCall[0][2] == setTagInstanceCall[1][2] {
-		t.Fatalf("setTagInstance called two times for the same instance id", len(setTagInstanceCall))
+		t.Fatal("setTagInstance called two times for the same instance id", len(setTagInstanceCall))
 	}
 
 	destroyInstanceCall := awsConn.Requests["TerminateInstance"]
@@ -194,7 +194,7 @@ func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
 		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 1", len(destroyInstanceCall))
 	}
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 	detachInstanceCall = awsConn.Requests["DetachInstance"]
 	if len(detachInstanceCall) != 2 {
 		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
@@ -221,29 +221,29 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
-	awsConn := &aws.AwsConnectionMock{
+	awsConn := &aws.ConnectionMock{
 		Records: map[string]*[]string{
-			"DescribeInstanceById": &[]string{
+			"DescribeInstanceById": {
 				"node1", "node2", "node3",
 				"node1", "node2", "node3",
 			},
-			"DescribeInstancesByTag": &[]string{"default", "default"},
-			"DescribeAGByName":       &[]string{"default", "default"},
+			"DescribeInstancesByTag": {"default", "default"},
+			"DescribeAGByName":       {"default", "default"},
 		},
 	}
 
-	mesosConn := &mesos.MesosConnectionMock{
+	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
-			"GetMesosFrameworks": &[]string{"default", "default"},
-			"GetMesosSlaves":     &[]string{"default", "default"},
-			"GetMesosTasks":      &[]string{"default", "default"},
+			"GetMesosFrameworks": {"default", "default"},
+			"GetMesosSlaves":     {"default", "default"},
+			"GetMesosTasks":      {"default", "default"},
 		},
 	}
 
 	mesosMonitor, autoscalingGroups, deathNodeWatcher, _ := prepareRunParameters(awsConn, mesosConn, 0)
 
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
-	Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+	run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 
 	detachInstanceCall := awsConn.Requests["DetachInstance"]
 	if detachInstanceCall != nil {
@@ -251,8 +251,8 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 	}
 }
 
-func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.MesosConnectionInterface, delayDeleteSeconds int) (
-	*mesos.MesosMonitor, *aws.AutoscalingGroups, *deathnode.DeathNodeWatcher, *deathnode.Notebook) {
+func prepareRunParameters(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) (
+	*mesos.Monitor, *aws.AutoscalingGroups, *deathnode.Watcher, *deathnode.Notebook) {
 
 	protectedFrameworks := []string{"frameworkname1"}
 	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
@@ -260,9 +260,9 @@ func prepareRunParameters(awsConn aws.AwsConnectionInterface, mesosConn mesos.Me
 	constraintsType := "noContraint"
 	recommenderType := "smallestInstanceId"
 
-	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
+	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames)
 	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds)
-	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
+	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 	return mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook
 }

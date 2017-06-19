@@ -10,11 +10,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type ArrayFlags []string
+type arrayFlags []string
 
-var accessKey, secretKey, region, iamRole, iamSession, mesosUrl, constraintsType, recommenderType string
-var autoscalingGroupPrefixes, protectedFrameworks ArrayFlags
-var polling_seconds, delay_delete_seconds int
+var accessKey, secretKey, region, iamRole, iamSession, mesosURL, constraintsType, recommenderType string
+var autoscalingGroupPrefixes, protectedFrameworks arrayFlags
+var pollingSeconds, delayDeleteSeconds int
 var debug bool
 
 func main() {
@@ -28,31 +28,31 @@ func main() {
 	}
 
 	// Create the monitors for autoscaling groups
-	awsConn, err := aws.NewConnection(accessKey, secretKey, region, iamRole, iamSession)
+	awsConn, err := aws.NewClient(accessKey, secretKey, region, iamRole, iamSession)
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
 	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes)
 
 	// Create the Mesos monitor
-	mesosConn := &mesos.MesosConnection{
-		MasterUrl: mesosUrl,
+	mesosConn := &mesos.Client{
+		MasterURL: mesosURL,
 	}
-	mesosMonitor := mesos.NewMesosMonitor(mesosConn, protectedFrameworks)
+	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delay_delete_seconds)
-	deathNodeWatcher := deathnode.NewDeathNodeWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds)
+	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
-	ticker := time.NewTicker(time.Second * time.Duration(polling_seconds))
+	ticker := time.NewTicker(time.Second * time.Duration(pollingSeconds))
 	for {
-		go Run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+		go run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
 		<-ticker.C
 	}
 }
 
-func Run(mesosMonitor *mesos.MesosMonitor, autoscalingGroups *aws.AutoscalingGroups,
-	deathNodeWatcher *deathnode.DeathNodeWatcher) {
+func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroups,
+	deathNodeWatcher *deathnode.Watcher) {
 
 	log.Debug("New check triggered")
 	// Refresh autoscaling monitors and mesos monitor
@@ -77,7 +77,7 @@ func initFlags() {
 	flag.StringVar(&iamSession, "iamSession", "", "help message for flagname")
 
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
-	flag.StringVar(&mesosUrl, "mesosUrl", "", "The URL for Mesos master")
+	flag.StringVar(&mesosURL, "mesosUrl", "", "The URL for Mesos master")
 
 	flag.Var(&autoscalingGroupPrefixes, "autoscalingGroupName", "An autoscalingGroup prefix for monitor")
 	flag.Var(&protectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node")
@@ -86,15 +86,15 @@ func initFlags() {
 	flag.StringVar(&constraintsType, "constraintsType", "noContraint", "The constrainst implementation to use")
 	flag.StringVar(&recommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use")
 
-	flag.IntVar(&polling_seconds, "polling", 60, "Seconds between executions")
-	flag.IntVar(&delay_delete_seconds, "delayDelete", 0, "Time to wait between kill executions (in seconds)")
+	flag.IntVar(&pollingSeconds, "polling", 60, "Seconds between executions")
+	flag.IntVar(&delayDeleteSeconds, "delayDelete", 0, "Time to wait between kill executions (in seconds)")
 
 	flag.Parse()
 }
 
 func enforceFlags() {
 
-	if mesosUrl == "" {
+	if mesosURL == "" {
 		flag.Usage()
 		log.Fatal("mesosUrl flag is required")
 	}
@@ -110,11 +110,11 @@ func enforceFlags() {
 	}
 }
 
-func (i *ArrayFlags) String() string {
+func (i *arrayFlags) String() string {
 	return ""
 }
 
-func (i *ArrayFlags) Set(value string) error {
+func (i *arrayFlags) Set(value string) error {
 	*i = append(*i, value)
 	return nil
 }

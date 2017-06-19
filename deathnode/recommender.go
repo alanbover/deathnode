@@ -11,7 +11,7 @@ func newRecommender(recommenderType string) (recommender, error) {
 	case "firstAvailableAgent":
 		return &firstAvailableAgent{}, nil
 	case "smallestInstanceId":
-		return &smallestInstanceId{}, nil
+		return &smallestInstanceID{}, nil
 	default:
 		return nil, fmt.Errorf("Recommender type %v not found", recommenderType)
 	}
@@ -27,15 +27,15 @@ func (c *firstAvailableAgent) find(mesosAgents []*aws.InstanceMonitor) *aws.Inst
 	return mesosAgents[0]
 }
 
-type smallestInstanceId struct{}
+type smallestInstanceID struct{}
 
-func (c *smallestInstanceId) find(mesosAgents []*aws.InstanceMonitor) *aws.InstanceMonitor {
-	mesosAgentSmallestInstanceId := mesosAgents[0]
+func (c *smallestInstanceID) find(mesosAgents []*aws.InstanceMonitor) *aws.InstanceMonitor {
+	mesosAgentSmallestInstanceID := mesosAgents[0]
 	for _, mesosAgent := range mesosAgents {
-		if strings.Compare(mesosAgent.GetInstanceId(), mesosAgentSmallestInstanceId.GetInstanceId()) < 0 {
-			mesosAgentSmallestInstanceId = mesosAgent
+		if strings.Compare(mesosAgent.GetInstanceID(), mesosAgentSmallestInstanceID.GetInstanceID()) < 0 {
+			mesosAgentSmallestInstanceID = mesosAgent
 		}
 	}
 
-	return mesosAgentSmallestInstanceId
+	return mesosAgentSmallestInstanceID
 }

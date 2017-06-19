@@ -8,14 +8,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type DeathNodeWatcher struct {
+// Watcher stores the enough information for decide, if instances need to be removed, which ones are the best
+type Watcher struct {
 	notebook     *Notebook
-	mesosMonitor *mesos.MesosMonitor
+	mesosMonitor *mesos.Monitor
 	constraints  constraint
 	recommender  recommender
 }
 
-func NewDeathNodeWatcher(notebook *Notebook, mesosMonitor *mesos.MesosMonitor, constraintType, recommenderType string) *DeathNodeWatcher {
+// NewWatcher returns a new Watcher object
+func NewWatcher(notebook *Notebook, mesosMonitor *mesos.Monitor, constraintType, recommenderType string) *Watcher {
 
 	contrainsts, err := newConstraint(constraintType)
 	if err != nil {
@@ -27,7 +29,7 @@ func NewDeathNodeWatcher(notebook *Notebook, mesosMonitor *mesos.MesosMonitor, c
 		log.Fatal(err)
 	}
 
-	return &DeathNodeWatcher{
+	return &Watcher{
 		notebook:     notebook,
 		mesosMonitor: mesosMonitor,
 		constraints:  contrainsts,
@@ -35,7 +37,9 @@ func NewDeathNodeWatcher(notebook *Notebook, mesosMonitor *mesos.MesosMonitor, c
 	}
 }
 
-func (y *DeathNodeWatcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
+// RemoveUndesiredInstances finds, if any instances to be removed for an autoscaling group, the best instances to
+// kill and marks them to be removed
+func (y *Watcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
 
 	numUndesiredInstances := autoscalingMonitor.NumUndesiredInstances()
 	log.Debugf("Undesired Mesos Agents: %d", numUndesiredInstances)
@@ -45,7 +49,7 @@ func (y *DeathNodeWatcher) RemoveUndesiredInstances(autoscalingMonitor *aws.Auto
 	for removedInstances < numUndesiredInstances {
 		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstancesNotMarkedToBeRemoved())
 		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
-		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetInstanceId())
+		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetInstanceID())
 		err := bestInstanceToKill.MarkToBeRemoved()
 		if err != nil {
 			log.Errorf("Unable to mark instance %s for removal", bestInstanceToKill.GetIP())
@@ -53,13 +57,14 @@ func (y *DeathNodeWatcher) RemoveUndesiredInstances(autoscalingMonitor *aws.Auto
 			break
 		}
 
-		removedInstances += 1
+		removedInstances++
 	}
 
 	return nil
 }
 
-func (y *DeathNodeWatcher) DestroyInstancesAttempt() {
+// DestroyInstancesAttempt try for those instances marked to be deleted to delete them
+func (y *Watcher) DestroyInstancesAttempt() {
 
 	err := y.notebook.DestroyInstancesAttempt()
 	if err != nil {

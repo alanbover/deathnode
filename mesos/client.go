@@ -9,90 +9,104 @@ import (
 	"path/filepath"
 )
 
-type MesosConnectionInterface interface {
+// ClientInterface is an interface for mesos api clients
+type ClientInterface interface {
 	getMesosTasks() (*TasksResponse, error)
 	getMesosFrameworks() (*FrameworksResponse, error)
 	getMesosSlaves() (*SlavesResponse, error)
 	setHostsInMaintenance(map[string]string) error
 }
 
-type MesosConnection struct {
-	MasterUrl string
+// Client implements a client for mesos api
+type Client struct {
+	MasterURL string
 }
 
+// SlavesResponse is part of the mesos slaves response API endpoint
 type SlavesResponse struct {
 	Slaves []Slave `json:"slaves"`
 }
 
+// Slave is part of the mesos slaves response API endpoint
 type Slave struct {
-	Id       string `json:"id"`
+	ID       string `json:"id"`
 	Pid      string `json:"pid"`
 	Hostname string `json:"hostname"`
 }
 
+// FrameworksResponse is part of the mesos frameworks response API endpoint
 type FrameworksResponse struct {
 	Frameworks []Framework `json:"frameworks"`
 }
 
+// Framework is part of the mesos frameworks response API endpoint
 type Framework struct {
-	Id     string `json:"id"`
+	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Active bool   `json:"active"`
 }
 
+// TasksResponse is part of the mesos tasks response API endpoint
 type TasksResponse struct {
 	Tasks []Task `json:"tasks"`
 }
 
+// Task is part of the mesos tasks response API endpoint
 type Task struct {
-	Name         string   `json:"name"`
-	State        string   `json:"state"`
-	Slave_id     string   `json:"slave_id"`
-	Framework_id string   `json:"framework_id"`
-	Statuses     []Status `json:"statuses"`
+	Name        string   `json:"name"`
+	State       string   `json:"state"`
+	SlaveID     string   `json:"slave_id"`
+	FrameworkID string   `json:"framework_id"`
+	Statuses    []Status `json:"statuses"`
 }
 
+// Status is part of the mesos tasks response API endpoint
 type Status struct {
 	State     string  `json:"state"`
 	Timestamp float64 `json:"timestamp"`
 }
 
+// MaintenanceRequest implements the payload for set mesos instances in maintenance API call
 type MaintenanceRequest struct {
 	Windows []MaintenanceWindow `json:"windows"`
 }
 
+// MaintenanceWindow implements the payload for set mesos instances in maintenance API call
 type MaintenanceWindow struct {
-	MachinesIds    []MaintenanceMachinesId   `json:"machine_ids"`
+	MachinesIds    []MaintenanceMachinesID   `json:"machine_ids"`
 	Unavailability MaintenanceUnavailability `json:"unavailability"`
 }
 
-type MaintenanceMachinesId struct {
+// MaintenanceMachinesID implements the payload for set mesos instances in maintenance API call
+type MaintenanceMachinesID struct {
 	Hostname string `json:"hostname"`
-	Ip       string `json:"ip"`
+	IP       string `json:"ip"`
 }
 
+// MaintenanceUnavailability implements the payload for set mesos instances in maintenance API call
 type MaintenanceUnavailability struct {
 	Start MaintenanceStart `json:"start"`
 }
 
+// MaintenanceStart implements the payload for set mesos instances in maintenance API call
 type MaintenanceStart struct {
 	Nanoseconds int32 `json:"nanoseconds"`
 }
 
-func (c *MesosConnection) setHostsInMaintenance(hosts map[string]string) error {
+func (c *Client) setHostsInMaintenance(hosts map[string]string) error {
 
-	url := fmt.Sprintf(c.MasterUrl + "/maintenance/schedule")
+	url := fmt.Sprintf(c.MasterURL + "/maintenance/schedule")
 
-	payload, err := generate_template(hosts)
+	payload, err := generateTemplate(hosts)
 	if err != nil {
 		return err
 	}
 
-	err = mesos_post_api_call(url, payload)
+	err = mesosPostAPICall(url, payload)
 	return err
 }
 
-func (c *MesosConnection) getMesosTasks() (*TasksResponse, error) {
+func (c *Client) getMesosTasks() (*TasksResponse, error) {
 
 	var tasks TasksResponse
 	c.getMesosTasksRecursive(&tasks, 0)
@@ -100,11 +114,11 @@ func (c *MesosConnection) getMesosTasks() (*TasksResponse, error) {
 	return &tasks, nil
 }
 
-func (c *MesosConnection) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int) error {
+func (c *Client) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int) error {
 
 	var tasks TasksResponse
-	url := fmt.Sprintf("%s/master/tasks?limit=100&offset=%d", c.MasterUrl, offset)
-	err := mesos_get_api_call(url, &tasks)
+	url := fmt.Sprintf("%s/master/tasks?limit=100&offset=%d", c.MasterURL, offset)
+	err := mesosGetAPICall(url, &tasks)
 	if err != nil {
 		return err
 	}
@@ -118,39 +132,39 @@ func (c *MesosConnection) getMesosTasksRecursive(tasksResponse *TasksResponse, o
 	return nil
 }
 
-func (c *MesosConnection) getMesosFrameworks() (*FrameworksResponse, error) {
+func (c *Client) getMesosFrameworks() (*FrameworksResponse, error) {
 
-	url := fmt.Sprintf(c.MasterUrl + "/master/frameworks")
+	url := fmt.Sprintf(c.MasterURL + "/master/frameworks")
 
 	var frameworks FrameworksResponse
-	mesos_get_api_call(url, &frameworks)
+	mesosGetAPICall(url, &frameworks)
 
 	return &frameworks, nil
 }
 
-func (c *MesosConnection) getMesosSlaves() (*SlavesResponse, error) {
+func (c *Client) getMesosSlaves() (*SlavesResponse, error) {
 
-	url := fmt.Sprintf(c.MasterUrl + "/master/slaves")
+	url := fmt.Sprintf(c.MasterURL + "/master/slaves")
 
 	var slaves SlavesResponse
-	mesos_get_api_call(url, &slaves)
+	mesosGetAPICall(url, &slaves)
 
 	return &slaves, nil
 }
 
-func generate_template(hosts map[string]string) ([]byte, error) {
+func generateTemplate(hosts map[string]string) ([]byte, error) {
 
-	maintenanceMachinesIds := []MaintenanceMachinesId{}
-	for host, _ := range hosts {
-		maintenanceMachinesId := MaintenanceMachinesId{
+	maintenanceMachinesIDs := []MaintenanceMachinesID{}
+	for host := range hosts {
+		maintenanceMachinesID := MaintenanceMachinesID{
 			Hostname: host,
-			Ip:       hosts[host],
+			IP:       hosts[host],
 		}
-		maintenanceMachinesIds = append(maintenanceMachinesIds, maintenanceMachinesId)
+		maintenanceMachinesIDs = append(maintenanceMachinesIDs, maintenanceMachinesID)
 	}
 
 	maintenanceWindow := MaintenanceWindow{
-		MachinesIds: maintenanceMachinesIds,
+		MachinesIds: maintenanceMachinesIDs,
 		Unavailability: MaintenanceUnavailability{
 			MaintenanceStart{
 				Nanoseconds: 1,
@@ -170,7 +184,7 @@ func generate_template(hosts map[string]string) ([]byte, error) {
 	return template, nil
 }
 
-func mesos_get_api_call(url string, response interface{}) error {
+func mesosGetAPICall(url string, response interface{}) error {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -195,7 +209,7 @@ func mesos_get_api_call(url string, response interface{}) error {
 	return nil
 }
 
-func mesos_post_api_call(url string, payload []byte) error {
+func mesosPostAPICall(url string, payload []byte) error {
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payload))
 	if err != nil {
