@@ -261,8 +261,8 @@ func prepareRunParameters(awsConn aws.ClientInterface, mesosConn mesos.ClientInt
 	recommenderType := "smallestInstanceId"
 
 	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames)
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds)
+	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, "DEATH_NODE_MARK")
 	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 	return mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook
 }

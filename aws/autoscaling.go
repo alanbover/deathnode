@@ -9,14 +9,15 @@ import (
 type AutoscalingGroups struct {
 	monitors      map[string]map[string]*AutoscalingGroupMonitor
 	awsConnection ClientInterface
+	deathNodeMark string
 }
 
 // AutoscalingGroupMonitor monitors an AWS autoscaling group, caching it's data
 type AutoscalingGroupMonitor struct {
 	autoscaling   *autoscalingGroup
 	awsConnection ClientInterface
+	deathNodeMark string
 }
-
 
 type autoscalingGroup struct {
 	autoscalingGroupName string
@@ -25,7 +26,7 @@ type autoscalingGroup struct {
 }
 
 // NewAutoscalingGroups returns an AutoscalingGroups object
-func NewAutoscalingGroups(awsConnection ClientInterface, autoscalingGroupNameList []string) (*AutoscalingGroups, error) {
+func NewAutoscalingGroups(awsConnection ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroups, error) {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
 	for _, autoscalingGroupName := range autoscalingGroupNameList {
@@ -35,13 +36,14 @@ func NewAutoscalingGroups(awsConnection ClientInterface, autoscalingGroupNameLis
 	autoscalingGroups := &AutoscalingGroups{
 		monitors:      monitors,
 		awsConnection: awsConnection,
+		deathNodeMark: deathNodeMark,
 	}
 
 	return autoscalingGroups, nil
 }
 
 // NewAutoscalingGroupMonitor returns a "empty" AutoscalingGroupMonitor object
-func newAutoscalingGroupMonitor(awsConnection ClientInterface, autoscalingGroupName string) (*AutoscalingGroupMonitor, error) {
+func newAutoscalingGroupMonitor(awsConnection ClientInterface, autoscalingGroupName, deathNodeMark string) (*AutoscalingGroupMonitor, error) {
 
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
@@ -50,6 +52,7 @@ func newAutoscalingGroupMonitor(awsConnection ClientInterface, autoscalingGroupN
 			instanceMonitors:     map[string]*InstanceMonitor{},
 		},
 		awsConnection: awsConnection,
+		deathNodeMark: deathNodeMark,
 	}, nil
 }
 
@@ -74,7 +77,7 @@ func (a *AutoscalingGroups) Refresh() error {
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName].refresh(autoscalingGroupResponse)
 			} else {
 				log.Infof("Found new autoscalingGroup to monitor: %s", *autoscalingGroupResponse.AutoScalingGroupName)
-				autoscalingGroupMonitor, _ := newAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName)
+				autoscalingGroupMonitor, _ := newAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName, a.deathNodeMark)
 				autoscalingGroupMonitor.refresh(autoscalingGroupResponse)
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName] = autoscalingGroupMonitor
 			}
@@ -154,7 +157,7 @@ func (a *AutoscalingGroupMonitor) refresh(autoscalingGroup *autoscaling.Group) e
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
 		if !ok {
 			log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
-			instanceMonitor, _ := newInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId)
+			instanceMonitor, _ := newInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId, a.deathNodeMark)
 			a.autoscaling.instanceMonitors[*instance.InstanceId] = instanceMonitor
 		}
 	}

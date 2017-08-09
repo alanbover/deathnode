@@ -18,10 +18,11 @@ type Notebook struct {
 	autoscalingGroups   *aws.AutoscalingGroups
 	delayDeleteSeconds  int
 	lastDeleteTimestamp time.Time
+	deathNodeMark       string
 }
 
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
-func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.ClientInterface, mesosMonitor *mesos.Monitor, delayDeleteSeconds int) *Notebook {
+func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.ClientInterface, mesosMonitor *mesos.Monitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,
@@ -29,6 +30,7 @@ func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.ClientInt
 		autoscalingGroups:   autoscalingGroups,
 		delayDeleteSeconds:  delayDeleteSeconds,
 		lastDeleteTimestamp: time.Time{},
+		deathNodeMark:       deathNodeMark,
 	}
 }
 
@@ -49,9 +51,9 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 func (n *Notebook) DestroyInstancesAttempt() error {
 
 	// Get instances marked for removal
-	instances, err := n.awsConnection.DescribeInstancesByTag(aws.DeathNodeTagMark)
+	instances, err := n.awsConnection.DescribeInstancesByTag(n.deathNodeMark)
 	if err != nil {
-		log.Debugf("Unable to find instances with %s tag", aws.DeathNodeTagMark)
+		log.Debugf("Unable to find instances with %s tag", n.deathNodeMark)
 		return err
 	}
 

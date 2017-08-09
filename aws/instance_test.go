@@ -12,7 +12,7 @@ func TestNewInstanceMonitor(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
+	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK")
 
 	if instanceMonitor == nil {
 		t.Fatal("nil InstanceMonitor")
@@ -35,12 +35,12 @@ func TestSetInstanceTag(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
+	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK")
 	instanceMonitor.MarkToBeRemoved()
 
 	callArguments := conn.Requests["SetInstanceTag"]
 
-	if (callArguments)[0][0] != DeathNodeTagMark {
+	if (callArguments)[0][0] != "DEATH_NODE_MARK" {
 		t.Fatal("Incorrect tag key for SetTags")
 	}
 
@@ -57,7 +57,7 @@ func TestInstanceMarkToBeRemoved(t *testing.T) {
 		},
 	}
 
-	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae")
+	instanceMonitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK")
 
 	if !instanceMonitor.instance.markedToBeRemoved {
 		t.Fatal("wrong markedToBeRemoved value")

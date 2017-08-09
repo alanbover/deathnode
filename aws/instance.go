@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// DeathNodeTagMark holds the value for the TAG to mark instances to be deleted
-const DeathNodeTagMark = "DEATH_NODE_MARK"
-
 type instance struct {
 	autoscalingGroupID  string
 	launchConfiguration string
@@ -21,9 +18,10 @@ type instance struct {
 type InstanceMonitor struct {
 	instance      *instance
 	awsConnection ClientInterface
+	deathNodeMark string
 }
 
-func newInstanceMonitor(conn ClientInterface, autoscalingGroupID, instanceID string) (*InstanceMonitor, error) {
+func newInstanceMonitor(conn ClientInterface, autoscalingGroupID, instanceID, deathNodeMark string) (*InstanceMonitor, error) {
 
 	response, err := conn.DescribeInstanceByID(instanceID)
 
@@ -33,12 +31,13 @@ func newInstanceMonitor(conn ClientInterface, autoscalingGroupID, instanceID str
 
 	return &InstanceMonitor{
 		instance: &instance{
-			autoscalingGroupID:  autoscalingGroupID,
-			ipAddress:           *response.PrivateIpAddress,
-			instanceID:          instanceID,
-			markedToBeRemoved:   isMarkedToBeRemoved(response.Tags),
+			autoscalingGroupID: autoscalingGroupID,
+			ipAddress:          *response.PrivateIpAddress,
+			instanceID:         instanceID,
+			markedToBeRemoved:  isMarkedToBeRemoved(response.Tags, deathNodeMark),
 		},
 		awsConnection: conn,
+		deathNodeMark: deathNodeMark,
 	}, nil
 }
 
@@ -56,7 +55,7 @@ func (a *InstanceMonitor) GetInstanceID() string {
 // Key: valueOf(DEATH_NODE_TAG_MARK)
 // Value: Current timestamp (epoch)
 func (a *InstanceMonitor) MarkToBeRemoved() error {
-	err := a.awsConnection.SetInstanceTag(DeathNodeTagMark, getEpochAsString(), a.instance.instanceID)
+	err := a.awsConnection.SetInstanceTag(a.deathNodeMark, getEpochAsString(), a.instance.instanceID)
 	a.instance.markedToBeRemoved = true
 	return err
 }
@@ -65,9 +64,9 @@ func getEpochAsString() string {
 	return fmt.Sprintf("%v", time.Now().Unix())
 }
 
-func isMarkedToBeRemoved(tags []*ec2.Tag) bool {
+func isMarkedToBeRemoved(tags []*ec2.Tag, deathNodeMark string) bool {
 	for _, tag := range tags {
-		if DeathNodeTagMark == *tag.Key {
+		if deathNodeMark == *tag.Key {
 			return true
 		}
 	}
