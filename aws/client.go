@@ -129,6 +129,10 @@ func (c *Client) DescribeInstanceByID(instanceID string) (*ec2.Instance, error) 
 		return nil, err
 	}
 
+	if len(response.Reservations) < 1 || len(response.Reservations[0].Instances) < 1 {
+		return nil, fmt.Errorf("No instance information found for instance id %v", instanceID)
+	}
+
 	return response.Reservations[0].Instances[0], nil
 }
 
