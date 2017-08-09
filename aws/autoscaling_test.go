@@ -14,7 +14,7 @@ func TestNewAutoscalingGroupMonitor(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 	monitor := autoscalingGroups.GetMonitors()[0]
 
@@ -45,7 +45,7 @@ func TestNumUndesiredASGinstances(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 	monitor := autoscalingGroups.GetMonitors()[0]
 
@@ -64,7 +64,7 @@ func TestNewAutoscalingGroups(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 
 	if (autoscalingGroups.GetMonitors())[0].autoscaling.autoscalingGroupName != "some-Autoscaling-Group" {
@@ -82,7 +82,7 @@ func TestRefresh(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 
 	autoscalingGroup := (autoscalingGroups.GetMonitors())[0]
@@ -116,7 +116,7 @@ func TestSetInstanceProtection(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 
 	callArguments := awsConn.Requests["SetASGInstanceProtection"]
@@ -151,7 +151,7 @@ func TestTwoAutoscalingMonitors(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 	autoscalingGroups.Refresh()
 	monitors := autoscalingGroups.GetMonitors()
@@ -189,7 +189,7 @@ func TestRemoveAutoscalingGroup(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 	autoscalingGroups.Refresh()
 	autoscalingGroups.Refresh()
@@ -210,7 +210,7 @@ func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 	}
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
-	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames)
+	autoscalingGroups, _ := NewAutoscalingGroups(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 
 	asgID, _ := autoscalingGroups.GetAutoscalingNameByInstanceID("i-34719eb8")

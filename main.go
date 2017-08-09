@@ -12,7 +12,7 @@ import (
 
 type arrayFlags []string
 
-var accessKey, secretKey, region, iamRole, iamSession, mesosURL, constraintsType, recommenderType string
+var accessKey, secretKey, region, iamRole, iamSession, mesosURL, constraintsType, recommenderType, deathNodeMark string
 var autoscalingGroupPrefixes, protectedFrameworks arrayFlags
 var pollingSeconds, delayDeleteSeconds int
 var debug bool
@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes)
+	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes, deathNodeMark)
 
 	// Create the Mesos monitor
 	mesosConn := &mesos.Client{
@@ -41,7 +41,7 @@ func main() {
 	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds)
+	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, deathNodeMark)
 	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(pollingSeconds))
@@ -85,6 +85,8 @@ func initFlags() {
 	// Move constraints to array, so we apply multiple
 	flag.StringVar(&constraintsType, "constraintsType", "noContraint", "The constrainst implementation to use")
 	flag.StringVar(&recommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use")
+
+	flag.StringVar(&deathNodeMark, "deathNodeMark", "DEATH_NODE_MARK", "The tag to apply for instances to be deleted")
 
 	flag.IntVar(&pollingSeconds, "polling", 60, "Seconds between executions")
 	flag.IntVar(&delayDeleteSeconds, "delayDelete", 0, "Time to wait between kill executions (in seconds)")
