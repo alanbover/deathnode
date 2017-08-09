@@ -157,7 +157,11 @@ func (a *AutoscalingGroupMonitor) refresh(autoscalingGroup *autoscaling.Group) e
 		_, ok := a.autoscaling.instanceMonitors[*instance.InstanceId]
 		if !ok {
 			log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
-			instanceMonitor, _ := newInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId, a.deathNodeMark)
+			instanceMonitor, err := newInstanceMonitor(a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId, a.deathNodeMark)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
 			a.autoscaling.instanceMonitors[*instance.InstanceId] = instanceMonitor
 		}
 	}
