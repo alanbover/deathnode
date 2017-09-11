@@ -252,16 +252,16 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 }
 
 func prepareRunParameters(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) (
-	*mesos.Monitor, *aws.AutoscalingGroups, *deathnode.Watcher, *deathnode.Notebook) {
+	*mesos.Monitor, *aws.AutoscalingGroupMonitors, *deathnode.Watcher, *deathnode.Notebook) {
 
-	protectedFrameworks := []string{"frameworkname1"}
+	protectedFrameworks := []string{"frameworkName1"}
 	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
 
 	constraintsType := "noContraint"
 	recommenderType := "smallestInstanceId"
 
 	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
+	autoscalingGroups, _ := aws.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
 	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, "DEATH_NODE_MARK")
 	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
 	return mesosMonitor, autoscalingGroups, deathNodeWatcher, notebook

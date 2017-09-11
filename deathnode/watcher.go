@@ -47,7 +47,7 @@ func (y *Watcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGr
 	removedInstances := 0
 
 	for removedInstances < numUndesiredInstances {
-		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstancesNotMarkedToBeRemoved())
+		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstances())
 		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
 		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetInstanceID())
 		err := bestInstanceToKill.MarkToBeRemoved()

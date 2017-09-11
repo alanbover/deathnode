@@ -1,18 +1,18 @@
 {
   "frameworks": [
     {
-      "id": "framework1",
-      "name": "frameworkname1",
+      "id": "frameworkId1",
+      "name": "frameworkName1",
       "active": true
     },
     {
-      "id": "framework2",
-      "name": "frameworkname2",
+      "id": "frameworkId2",
+      "name": "frameworkName2",
       "active": true
     },
     {
-      "id": "framework3",
-      "name": "frameworkname2",
+      "id": "frameworkId3",
+      "name": "frameworkName2",
       "active": true
     }
   ]

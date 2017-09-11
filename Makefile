@@ -14,6 +14,10 @@ docker:
 test:
 	go test $$(go list ./... | grep -v /vendor/)
 
+cover:
+	go test -cover $$(go list ./... | grep -v /vendor/)
+
+
 clean:
 	rm -rf docker/dist
 

@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes, deathNodeMark)
+	autoscalingGroups, _ := aws.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupPrefixes, deathNodeMark)
 
 	// Create the Mesos monitor
 	mesosConn := &mesos.Client{
@@ -51,7 +51,7 @@ func main() {
 	}
 }
 
-func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroups,
+func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroupMonitors,
 	deathNodeWatcher *deathnode.Watcher) {
 
 	log.Debug("New check triggered")
@@ -60,7 +60,7 @@ func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroups,
 	mesosMonitor.Refresh()
 
 	// For each autoscaling monitor, check if any instances needs to be removed
-	for _, autoscalingGroup := range autoscalingGroups.GetMonitors() {
+	for _, autoscalingGroup := range autoscalingGroups.GetAllMonitors() {
 		deathNodeWatcher.RemoveUndesiredInstances(autoscalingGroup)
 	}
 
