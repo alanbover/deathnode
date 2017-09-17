@@ -1,8 +1,9 @@
-package aws
+package monitor
 
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/alanbover/deathnode/aws"
 	"time"
 )
 
@@ -17,11 +18,11 @@ type instance struct {
 // InstanceMonitor monitors an AWS instance
 type InstanceMonitor struct {
 	instance      *instance
-	awsConnection ClientInterface
+	awsConnection aws.ClientInterface
 	deathNodeMark string
 }
 
-func newInstanceMonitor(conn ClientInterface, autoscalingGroupID, instanceID, deathNodeMark string) (*InstanceMonitor, error) {
+func newInstanceMonitor(conn aws.ClientInterface, autoscalingGroupID, instanceID, deathNodeMark string) (*InstanceMonitor, error) {
 
 	response, err := conn.DescribeInstanceByID(instanceID)
 

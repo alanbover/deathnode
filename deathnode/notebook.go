@@ -5,7 +5,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
-	"github.com/alanbover/deathnode/mesos"
+	"github.com/alanbover/deathnode/monitor"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
 	"time"
@@ -13,16 +13,16 @@ import (
 
 // Notebook stores the necessary information for deal with instances that should be deleted
 type Notebook struct {
-	mesosMonitor        *mesos.Monitor
+	mesosMonitor        *monitor.MesosMonitor
 	awsConnection       aws.ClientInterface
-	autoscalingGroups   *aws.AutoscalingGroupMonitors
+	autoscalingGroups   *monitor.AutoscalingGroupMonitors
 	delayDeleteSeconds  int
 	lastDeleteTimestamp time.Time
 	deathNodeMark       string
 }
 
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
-func NewNotebook(autoscalingGroups *aws.AutoscalingGroupMonitors, awsConn aws.ClientInterface, mesosMonitor *mesos.Monitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
+func NewNotebook(autoscalingGroups *monitor.AutoscalingGroupMonitors, awsConn aws.ClientInterface, mesosMonitor *monitor.MesosMonitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,

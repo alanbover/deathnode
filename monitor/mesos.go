@@ -1,4 +1,4 @@
-package mesos
+package monitor
 
 // Monitor holds a connection to mesos, and a cache for every iteration
 // With MesosCache we reduce the number of calls to mesos, also we map it for quicker access
@@ -6,11 +6,12 @@ package mesos
 import (
 	"fmt"
 	"strings"
+	"github.com/alanbover/deathnode/mesos"
 )
 
 // Monitor monitors the mesos cluster, creating a cache to reduce the number of calls against it
-type Monitor struct {
-	mesosConn           ClientInterface
+type MesosMonitor struct {
+	mesosConn           mesos.ClientInterface
 	mesosCache          *mesosCache
 	protectedFrameworks []string
 }
@@ -20,37 +21,37 @@ type Monitor struct {
 // frameworks: map[frameworkID]Framework
 // slaves: map[privateIPAddress]Slave
 type mesosCache struct {
-	tasks      map[string][]Task
-	frameworks map[string]Framework
-	slaves     map[string]Slave
+	tasks      map[string][]mesos.Task
+	frameworks map[string]mesos.Framework
+	slaves     map[string]mesos.Slave
 }
 
 // NewMonitor returns a new mesos.monitor object
-func NewMonitor(mesosConn ClientInterface, protectedFrameworks []string) *Monitor {
+func NewMesosMonitor(mesosConn mesos.ClientInterface, protectedFrameworks []string) *MesosMonitor {
 
-	return &Monitor{
+	return &MesosMonitor{
 		mesosConn: mesosConn,
 		mesosCache: &mesosCache{
-			tasks:      map[string][]Task{},
-			frameworks: map[string]Framework{},
-			slaves:     map[string]Slave{},
+			tasks:      map[string][]mesos.Task{},
+			frameworks: map[string]mesos.Framework{},
+			slaves:     map[string]mesos.Slave{},
 		},
 		protectedFrameworks: protectedFrameworks,
 	}
 }
 
 // Refresh updates the mesos cache
-func (m *Monitor) Refresh() {
+func (m *MesosMonitor) Refresh() {
 
 	m.mesosCache.tasks = m.getTasks()
 	m.mesosCache.frameworks = m.getProtectedFrameworks()
 	m.mesosCache.slaves = m.getSlaves()
 }
 
-func (m *Monitor) getProtectedFrameworks() map[string]Framework {
+func (m *MesosMonitor) getProtectedFrameworks() map[string]mesos.Framework {
 
-	frameworksMap := map[string]Framework{}
-	frameworksResponse, _ := m.mesosConn.getMesosFrameworks()
+	frameworksMap := map[string]mesos.Framework{}
+	frameworksResponse, _ := m.mesosConn.GetMesosFrameworks()
 	for _, framework := range frameworksResponse.Frameworks {
 		for _, protectedFramework := range m.protectedFrameworks {
 			if protectedFramework == framework.Name {
@@ -61,10 +62,10 @@ func (m *Monitor) getProtectedFrameworks() map[string]Framework {
 	return frameworksMap
 }
 
-func (m *Monitor) getSlaves() map[string]Slave {
+func (m *MesosMonitor) getSlaves() map[string]mesos.Slave {
 
-	slavesMap := map[string]Slave{}
-	slavesResponse, _ := m.mesosConn.getMesosSlaves()
+	slavesMap := map[string]mesos.Slave{}
+	slavesResponse, _ := m.mesosConn.GetMesosSlaves()
 	for _, slave := range slavesResponse.Slaves {
 		ipAddress := m.getAgentIPAddressFromPID(slave.Pid)
 		slavesMap[ipAddress] = slave
@@ -72,16 +73,16 @@ func (m *Monitor) getSlaves() map[string]Slave {
 	return slavesMap
 }
 
-func (m *Monitor) getAgentIPAddressFromPID(pid string) string {
+func (m *MesosMonitor) getAgentIPAddressFromPID(pid string) string {
 
 	tmp := strings.Split(pid, "@")[1]
 	return strings.Split(tmp, ":")[0]
 }
 
-func (m *Monitor) getTasks() map[string][]Task {
+func (m *MesosMonitor) getTasks() map[string][]mesos.Task {
 
-	tasksMap := map[string][]Task{}
-	tasksResponse, _ := m.mesosConn.getMesosTasks()
+	tasksMap := map[string][]mesos.Task{}
+	tasksResponse, _ := m.mesosConn.GetMesosTasks()
 	for _, task := range tasksResponse.Tasks {
 		if task.State == "TASK_RUNNING" {
 			tasksMap[task.SlaveID] = append(tasksMap[task.SlaveID], task)
@@ -91,24 +92,24 @@ func (m *Monitor) getTasks() map[string][]Task {
 }
 
 // GetMesosSlaveByIP returns the Mesos slave that matches a certain IP
-func (m *Monitor) GetMesosAgentByIP(ipAddress string) (Slave, error) {
+func (m *MesosMonitor) GetMesosAgentByIP(ipAddress string) (mesos.Slave, error) {
 
 	slave, ok := m.mesosCache.slaves[ipAddress]
 	if ok {
 		return slave, nil
 	}
 
-	return Slave{}, fmt.Errorf("Instance with ip %v not found in Mesos", ipAddress)
+	return mesos.Slave{}, fmt.Errorf("Instance with ip %v not found in Mesos", ipAddress)
 }
 
 // SetMesosAgentsInMaintenance sets a list of mesos agents in Maintenance mode
-func (m *Monitor) SetMesosAgentsInMaintenance(hosts map[string]string) error {
-	return m.mesosConn.setHostsInMaintenance(hosts)
+func (m *MesosMonitor) SetMesosAgentsInMaintenance(hosts map[string]string) error {
+	return m.mesosConn.SetHostsInMaintenance(hosts)
 }
 
 // HasProtectedFrameworksTasks returns true if the mesos agent has any tasks running from any of the
 // protected frameworks.
-func (m *Monitor) HasProtectedFrameworksTasks(ipAddress string) bool {
+func (m *MesosMonitor) HasProtectedFrameworksTasks(ipAddress string) bool {
 
 	slaveID := m.mesosCache.slaves[ipAddress].ID
 	fmt.Println(m.mesosCache.slaves)

@@ -1,14 +1,15 @@
-package aws
+package monitor
 
 import (
 	"testing"
+	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestNewAutoscalingGroup(t *testing.T) {
 
 	Convey("When creating a new autoscalingGroupMonitor", t, func() {
-		monitor := newTestMonitor(&ConnectionMock{
+		monitor := newTestMonitor(&aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"default"},
@@ -35,7 +36,7 @@ func TestUndesiredInstances(t *testing.T) {
 	Convey("When creating a new autoscalingGroupMonitor", t, func() {
 
 		Convey("if it has 3 instances and desired instances are 3", func() {
-			monitor := newTestMonitor(&ConnectionMock{
+			monitor := newTestMonitor(&aws.ConnectionMock{
 				Records: map[string]*[]string{
 					"DescribeInstanceById": {"default", "default", "default"},
 					"DescribeAGByName":     {"default"},
@@ -47,7 +48,7 @@ func TestUndesiredInstances(t *testing.T) {
 			})
 		})
 		Convey("if it has 3 instances and desired instances are 2", func() {
-			monitor := newTestMonitor(&ConnectionMock{
+			monitor := newTestMonitor(&aws.ConnectionMock{
 				Records: map[string]*[]string{
 					"DescribeInstanceById": {"default", "default", "default"},
 					"DescribeAGByName":     {"one_undesired_host"},
@@ -65,7 +66,7 @@ func TestRefresh(t *testing.T) {
 
 	Convey("When refreshing an AutoscalingGroup", t, func() {
 		Convey("and it changes", func() {
-			monitors := newTestAutoscalingMonitors(&ConnectionMock{
+			monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
 				Records: map[string]*[]string{
 					"DescribeInstanceById": {
 						"default", "default", "default", "default", "default", "default"},
@@ -87,7 +88,7 @@ func TestRefresh(t *testing.T) {
 			})
 		})
 		Convey("and a new one appears", func() {
-			monitors := newTestAutoscalingMonitors(&ConnectionMock{
+			monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
 				Records: map[string]*[]string{
 					"DescribeInstanceById": {
 						"default", "default", "default",
@@ -116,7 +117,7 @@ func TestRefresh(t *testing.T) {
 func TestSetInstanceProtection(t *testing.T) {
 
 	Convey("When creating an AutoscalingGroup", t, func() {
-		awsConn := &ConnectionMock{
+		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"instance_profile_disabled"},
@@ -137,7 +138,7 @@ func TestSetInstanceProtection(t *testing.T) {
 func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 
 	Convey("GetAutoscalingNameByInstanceID should", t, func() {
-		monitors := newTestAutoscalingMonitors(&ConnectionMock{
+		monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"default"},
@@ -159,7 +160,7 @@ func TestGetAutoscalingNameByInstanceId(t *testing.T) {
 func TestGetInstances(t *testing.T) {
 
 	Convey("When an autoscaling group with 3 instances is created", t, func() {
-		monitor := newTestMonitor(&ConnectionMock{
+		monitor := newTestMonitor(&aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"default"},
@@ -185,12 +186,12 @@ func TestGetInstances(t *testing.T) {
 	})
 }
 
-func newTestMonitor(awsConn *ConnectionMock) *AutoscalingGroupMonitor {
+func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 
 	return newTestAutoscalingMonitors(awsConn).GetAllMonitors()[0]
 }
 
-func newTestAutoscalingMonitors(awsConn *ConnectionMock) *AutoscalingGroupMonitors {
+func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitors {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroupMonitors(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")

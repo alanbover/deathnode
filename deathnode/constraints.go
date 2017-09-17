@@ -4,7 +4,7 @@ package deathnode
 
 import (
 	"fmt"
-	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/monitor"
 )
 
 func newConstraint(constraintType string) (constraint, error) {
@@ -17,11 +17,11 @@ func newConstraint(constraintType string) (constraint, error) {
 }
 
 type constraint interface {
-	filter([]*aws.InstanceMonitor) []*aws.InstanceMonitor
+	filter([]*monitor.InstanceMonitor) []*monitor.InstanceMonitor
 }
 
 type noConstraint struct{}
 
-func (c *noConstraint) filter(instanceMonitors []*aws.InstanceMonitor) []*aws.InstanceMonitor {
+func (c *noConstraint) filter(instanceMonitors []*monitor.InstanceMonitor) []*monitor.InstanceMonitor {
 	return instanceMonitors
 }

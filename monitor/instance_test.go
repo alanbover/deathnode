@@ -1,14 +1,15 @@
-package aws
+package monitor
 
 import (
 	"testing"
+	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestNewInstanceMonitor(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor", t, func() {
-		conn := &ConnectionMock{
+		conn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default"},
 			},
@@ -44,7 +45,7 @@ func TestNewInstanceMonitor(t *testing.T) {
 func TestInstanceMarkToBeRemoved(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor that is marked to be removed", t, func() {
-		conn := &ConnectionMock{
+		conn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"node_with_tag"},
 			},

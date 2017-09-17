@@ -1,21 +1,22 @@
-package mesos
+package monitor
 
 import (
 	"testing"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/alanbover/deathnode/mesos"
 )
 
 func TestGetMesosSlaveIdByIp(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
-		mesosConn := &ClientMock{
+		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{
 				"GetMesosFrameworks": {"default"},
 				"GetMesosSlaves":     {"default"},
 				"GetMesosTasks":      {"default"},
 			},
 		}
-		mesosMonitor := NewMonitor(mesosConn, []string{""})
+		mesosMonitor := NewMesosMonitor(mesosConn, []string{""})
 		mesosMonitor.Refresh()
 
 		Convey("GetMesosSlaveByIp should return an slave it if exists", func() {
@@ -32,14 +33,14 @@ func TestGetMesosSlaveIdByIp(t *testing.T) {
 func TestGetMesosFrameworks(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
-		mesosConn := &ClientMock{
+		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{
 				"GetMesosFrameworks": {"default"},
 				"GetMesosSlaves":     {"default"},
 				"GetMesosTasks":      {"default"},
 			},
 		}
-		monitor := NewMonitor(mesosConn, []string{"frameworkName1"})
+		monitor := NewMesosMonitor(mesosConn, []string{"frameworkName1"})
 
 		Convey("getProtectedFrameworks should return only the ones that match the protected frameworks", func() {
 			frameworks := monitor.getProtectedFrameworks()
@@ -52,14 +53,14 @@ func TestGetMesosFrameworks(t *testing.T) {
 func TestHasProtectedFrameworksTasks(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
-		mesosConn := &ClientMock{
+		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{
 				"GetMesosFrameworks": {"default"},
 				"GetMesosSlaves":     {"default"},
 				"GetMesosTasks":      {"default"},
 			},
 		}
-		monitor := NewMonitor(mesosConn, []string{"frameworkName1"})
+		monitor := NewMesosMonitor(mesosConn, []string{"frameworkName1"})
 		monitor.Refresh()
 
 		Convey("HasProtectedFrameworksTasks returns", func() {

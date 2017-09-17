@@ -1,21 +1,22 @@
-package aws
+package monitor
 
 import (
 	"github.com/aws/aws-sdk-go/service/autoscaling"
+	"github.com/alanbover/deathnode/aws"
 	log "github.com/sirupsen/logrus"
 )
 
 // AutoscalingGroups holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
 type AutoscalingGroupMonitors struct {
 	monitors      map[string]map[string]*AutoscalingGroupMonitor
-	awsConnection ClientInterface
+	awsConnection aws.ClientInterface
 	deathNodeMark string
 }
 
 // AutoscalingGroupMonitor monitors an AWS autoscaling group, caching it's data
 type AutoscalingGroupMonitor struct {
 	autoscaling   *autoscalingGroup
-	awsConnection ClientInterface
+	awsConnection aws.ClientInterface
 	deathNodeMark string
 }
 
@@ -26,7 +27,7 @@ type autoscalingGroup struct {
 }
 
 // NewAutoscalingGroups returns an AutoscalingGroups object
-func NewAutoscalingGroupMonitors(awsConnection ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupMonitors, error) {
+func NewAutoscalingGroupMonitors(awsConnection aws.ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupMonitors, error) {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
 	for _, autoscalingGroupName := range autoscalingGroupNameList {
@@ -43,7 +44,7 @@ func NewAutoscalingGroupMonitors(awsConnection ClientInterface, autoscalingGroup
 }
 
 // NewAutoscalingGroupMonitor returns a "empty" AutoscalingGroupMonitor object
-func newAutoscalingGroupMonitor(awsConnection ClientInterface, autoscalingGroupName, deathNodeMark string) (*AutoscalingGroupMonitor, error) {
+func newAutoscalingGroupMonitor(awsConnection aws.ClientInterface, autoscalingGroupName, deathNodeMark string) (*AutoscalingGroupMonitor, error) {
 
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
