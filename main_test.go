@@ -253,7 +253,7 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 }
 
 func prepareRunParameters(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) (
-	*monitor.MesosMonitor, *monitor.AutoscalingGroupMonitors, *deathnode.Watcher, *deathnode.Notebook) {
+	*monitor.MesosMonitor, *monitor.AutoscalingGroupsMonitor, *deathnode.Watcher, *deathnode.Notebook) {
 
 	protectedFrameworks := []string{"frameworkName1"}
 	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}

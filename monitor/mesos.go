@@ -9,7 +9,7 @@ import (
 	"github.com/alanbover/deathnode/mesos"
 )
 
-// Monitor monitors the mesos cluster, creating a cache to reduce the number of calls against it
+// MesosMonitor monitors the mesos cluster, creating a cache to reduce the number of calls against it
 type MesosMonitor struct {
 	mesosConn           mesos.ClientInterface
 	mesosCache          *mesosCache
@@ -26,7 +26,7 @@ type mesosCache struct {
 	slaves     map[string]mesos.Slave
 }
 
-// NewMonitor returns a new mesos.monitor object
+// NewMesosMonitor returns a new mesos.monitor object
 func NewMesosMonitor(mesosConn mesos.ClientInterface, protectedFrameworks []string) *MesosMonitor {
 
 	return &MesosMonitor{
@@ -65,7 +65,7 @@ func (m *MesosMonitor) getProtectedFrameworks() map[string]mesos.Framework {
 func (m *MesosMonitor) getSlaves() map[string]mesos.Slave {
 
 	slavesMap := map[string]mesos.Slave{}
-	slavesResponse, _ := m.mesosConn.GetMesosSlaves()
+	slavesResponse, _ := m.mesosConn.GetMesosAgents()
 	for _, slave := range slavesResponse.Slaves {
 		ipAddress := m.getAgentIPAddressFromPID(slave.Pid)
 		slavesMap[ipAddress] = slave
@@ -91,7 +91,7 @@ func (m *MesosMonitor) getTasks() map[string][]mesos.Task {
 	return tasksMap
 }
 
-// GetMesosSlaveByIP returns the Mesos slave that matches a certain IP
+// GetMesosAgentByIP returns the Mesos slave that matches a certain IP
 func (m *MesosMonitor) GetMesosAgentByIP(ipAddress string) (mesos.Slave, error) {
 
 	slave, ok := m.mesosCache.slaves[ipAddress]

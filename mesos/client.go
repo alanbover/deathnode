@@ -13,7 +13,7 @@ import (
 type ClientInterface interface {
 	GetMesosTasks() (*TasksResponse, error)
 	GetMesosFrameworks() (*FrameworksResponse, error)
-	GetMesosSlaves() (*SlavesResponse, error)
+	GetMesosAgents() (*SlavesResponse, error)
 	SetHostsInMaintenance(map[string]string) error
 }
 
@@ -93,19 +93,18 @@ type MaintenanceStart struct {
 	Nanoseconds int32 `json:"nanoseconds"`
 }
 
+// SetHostsInMaintenance configures nodes in maintenance for Mesos cluster
 func (c *Client) SetHostsInMaintenance(hosts map[string]string) error {
 
 	url := fmt.Sprintf(c.MasterURL + "/maintenance/schedule")
 
-	payload, err := generateTemplate(hosts)
-	if err != nil {
-		return err
-	}
+	payload := genMaintenanceCallPayload(hosts)
 
-	err = mesosPostAPICall(url, payload)
+	err := mesosPostAPICall(url, payload)
 	return err
 }
 
+// GetMesosTasks return the running tasks on the Mesos cluster
 func (c *Client) GetMesosTasks() (*TasksResponse, error) {
 
 	var tasks TasksResponse
@@ -132,6 +131,7 @@ func (c *Client) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int
 	return nil
 }
 
+// GetMesosFrameworks returns the registered frameworks in Mesos
 func (c *Client) GetMesosFrameworks() (*FrameworksResponse, error) {
 
 	url := fmt.Sprintf(c.MasterURL + "/master/frameworks")
@@ -142,7 +142,8 @@ func (c *Client) GetMesosFrameworks() (*FrameworksResponse, error) {
 	return &frameworks, nil
 }
 
-func (c *Client) GetMesosSlaves() (*SlavesResponse, error) {
+// GetMesosAgents returns the Mesos Agents registered in the Mesos cluster
+func (c *Client) GetMesosAgents() (*SlavesResponse, error) {
 
 	url := fmt.Sprintf(c.MasterURL + "/master/slaves")
 
@@ -152,7 +153,7 @@ func (c *Client) GetMesosSlaves() (*SlavesResponse, error) {
 	return &slaves, nil
 }
 
-func generateTemplate(hosts map[string]string) ([]byte, error) {
+func genMaintenanceCallPayload(hosts map[string]string) []byte {
 
 	maintenanceMachinesIDs := []MaintenanceMachinesID{}
 	for host := range hosts {
@@ -176,12 +177,8 @@ func generateTemplate(hosts map[string]string) ([]byte, error) {
 		Windows: []MaintenanceWindow{maintenanceWindow},
 	}
 
-	template, err := json.Marshal(maintenanceRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return template, nil
+	template, _ := json.Marshal(maintenanceRequest)
+	return template
 }
 
 func mesosGetAPICall(url string, response interface{}) error {

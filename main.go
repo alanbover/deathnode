@@ -52,7 +52,7 @@ func main() {
 	}
 }
 
-func run(mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupMonitors,
+func run(mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupsMonitor,
 	deathNodeWatcher *deathnode.Watcher) {
 
 	log.Debug("New check triggered")

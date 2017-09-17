@@ -13,21 +13,30 @@ type ClientMock struct {
 	Requests map[string]*[]string
 }
 
+// GetMesosTasks mocked for testing purposes
 func (c *ClientMock) GetMesosTasks() (*TasksResponse, error) {
 	mockResponse, _ := c.replay(&TasksResponse{}, "GetMesosTasks")
 	return mockResponse.(*TasksResponse), nil
 }
 
+// GetMesosFrameworks mocked for testing purposes
 func (c *ClientMock) GetMesosFrameworks() (*FrameworksResponse, error) {
 	mockResponse, _ := c.replay(&FrameworksResponse{}, "GetMesosFrameworks")
 	return mockResponse.(*FrameworksResponse), nil
 }
 
-func (c *ClientMock) GetMesosSlaves() (*SlavesResponse, error) {
+// GetMesosAgents mocked for testing purposes
+func (c *ClientMock) GetMesosAgents() (*SlavesResponse, error) {
 	mockResponse, _ := c.replay(&SlavesResponse{}, "GetMesosSlaves")
 	return mockResponse.(*SlavesResponse), nil
 }
 
+// GenMaintenanceCallPayload mocked for testing purposes
+func (c *ClientMock) GenMaintenanceCallPayload(hosts map[string]string) []byte {
+	return genMaintenanceCallPayload(hosts)
+}
+
+// SetHostsInMaintenance mocked for testing purposes
 func (c *ClientMock) SetHostsInMaintenance(hosts map[string]string) error {
 	if c.Requests == nil {
 		c.Requests = map[string]*[]string{}

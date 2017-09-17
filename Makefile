@@ -25,4 +25,5 @@ lint:
 	golint mesos/
 	golint aws/
 	golint deathnode/
+	golint monitor/
 

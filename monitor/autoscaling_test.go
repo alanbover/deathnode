@@ -191,7 +191,7 @@ func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 	return newTestAutoscalingMonitors(awsConn).GetAllMonitors()[0]
 }
 
-func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitors {
+func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupsMonitor {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroupMonitors(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")

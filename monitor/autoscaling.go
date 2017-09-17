@@ -6,8 +6,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// AutoscalingGroups holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
-type AutoscalingGroupMonitors struct {
+// AutoscalingGroupsMonitor holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
+type AutoscalingGroupsMonitor struct {
 	monitors      map[string]map[string]*AutoscalingGroupMonitor
 	awsConnection aws.ClientInterface
 	deathNodeMark string
@@ -26,15 +26,15 @@ type autoscalingGroup struct {
 	instanceMonitors     map[string]*InstanceMonitor
 }
 
-// NewAutoscalingGroups returns an AutoscalingGroups object
-func NewAutoscalingGroupMonitors(awsConnection aws.ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupMonitors, error) {
+// NewAutoscalingGroupMonitors returns an AutoscalingGroups object
+func NewAutoscalingGroupMonitors(awsConnection aws.ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupsMonitor, error) {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
 	for _, autoscalingGroupName := range autoscalingGroupNameList {
 		monitors[autoscalingGroupName] = map[string]*AutoscalingGroupMonitor{}
 	}
 
-	autoscalingGroups := &AutoscalingGroupMonitors{
+	autoscalingGroups := &AutoscalingGroupsMonitor{
 		monitors:      monitors,
 		awsConnection: awsConnection,
 		deathNodeMark: deathNodeMark,
@@ -59,7 +59,7 @@ func newAutoscalingGroupMonitor(awsConnection aws.ClientInterface, autoscalingGr
 
 // Refresh updates autoscalingGroups caching all AWS autoscaling groups given the N prefixes
 // provided when AutoscalingGroups was created
-func (a *AutoscalingGroupMonitors) Refresh() error {
+func (a *AutoscalingGroupsMonitor) Refresh() error {
 
 	for autoscalingGroupPrefix := range a.monitors {
 
@@ -103,8 +103,8 @@ func (a *AutoscalingGroupMonitors) Refresh() error {
 	return nil
 }
 
-// GetMonitors returns all AutoscalingGroupMonitors cached in AutoscalingGroups
-func (a *AutoscalingGroupMonitors) GetAllMonitors() []*AutoscalingGroupMonitor {
+// GetAllMonitors returns all AutoscalingGroupMonitors cached in AutoscalingGroups
+func (a *AutoscalingGroupsMonitor) GetAllMonitors() []*AutoscalingGroupMonitor {
 
 	var monitors = []*AutoscalingGroupMonitor{}
 
@@ -118,7 +118,7 @@ func (a *AutoscalingGroupMonitors) GetAllMonitors() []*AutoscalingGroupMonitor {
 }
 
 // GetAutoscalingNameByInstanceID returns the AutoscalingGroupName of the AutoscalingGroup that holds a certain instanceId
-func (a *AutoscalingGroupMonitors) GetAutoscalingNameByInstanceID(instanceID string) (string, bool) {
+func (a *AutoscalingGroupsMonitor) GetAutoscalingNameByInstanceID(instanceID string) (string, bool) {
 
 	for asgPrefix := range a.monitors {
 		for _, asgGroupMonitor := range a.monitors[asgPrefix] {

@@ -15,14 +15,14 @@ import (
 type Notebook struct {
 	mesosMonitor        *monitor.MesosMonitor
 	awsConnection       aws.ClientInterface
-	autoscalingGroups   *monitor.AutoscalingGroupMonitors
+	autoscalingGroups   *monitor.AutoscalingGroupsMonitor
 	delayDeleteSeconds  int
 	lastDeleteTimestamp time.Time
 	deathNodeMark       string
 }
 
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
-func NewNotebook(autoscalingGroups *monitor.AutoscalingGroupMonitors, awsConn aws.ClientInterface, mesosMonitor *monitor.MesosMonitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
+func NewNotebook(autoscalingGroups *monitor.AutoscalingGroupsMonitor, awsConn aws.ClientInterface, mesosMonitor *monitor.MesosMonitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,
