@@ -13,16 +13,17 @@ It's implementation is based using:
 
 * Mesos Maintenance Primitives (http://mesos.apache.org/documentation/latest/maintenance/)
 * AWS Autoscaling ProtectFromScaleIn (http://docs.aws.amazon.com/autoscaling/latest/userguide/as-instance-termination.html)
+* AWS Autoscaling Lifecycle Hooks (http://docs.aws.amazon.com/autoscaling/latest/userguide/lifecycle-hooks.html)
 
 ### How does it do it?
 Deathnode monitors the autoscaling groups from the Mesos Agents. Whenever it detects that one instance from an autoscaling group should be removed, it will:
 
 *  Find the best agent to be killed
 *  Tag the instance as being deleted
-*  Remove the instance from the ASG
+*  Remove instance protection from the instance
 *  Set the instance in maintenance mode
 
-Then deathnode will keep monitoring this agent, destroying it once it's drained.
+Then deathnode will keep monitoring this agent, completing destroy lifecycle once it's drained.
 
 ## Usage
 Here you can find an example of usage:
@@ -47,7 +48,5 @@ DOCKERTAG="version" make docker
 ```
 
 ## Limitations
-Deathnode is still in development, and test in a real-production environment have just started.
-
 * Most of the Mesos frameworks doesn't implement Maintenance primitives.
 * Maintenance primitives are not available through Mesos native integration

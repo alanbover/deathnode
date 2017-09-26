@@ -32,7 +32,7 @@ type smallestInstanceID struct{}
 func (c *smallestInstanceID) find(mesosAgents []*monitor.InstanceMonitor) *monitor.InstanceMonitor {
 	mesosAgentSmallestInstanceID := mesosAgents[0]
 	for _, mesosAgent := range mesosAgents {
-		if strings.Compare(mesosAgent.GetInstanceID(), mesosAgentSmallestInstanceID.GetInstanceID()) < 0 {
+		if strings.Compare(*mesosAgent.GetInstanceID(), *mesosAgentSmallestInstanceID.GetInstanceID()) < 0 {
 			mesosAgentSmallestInstanceID = mesosAgent
 		}
 	}

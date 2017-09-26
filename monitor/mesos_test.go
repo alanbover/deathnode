@@ -8,23 +8,6 @@ import (
 	"fmt"
 )
 
-func TestGetMesosSlaveIdByIp(t *testing.T) {
-
-	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("")
-		monitor.Refresh()
-
-		Convey("GetMesosSlaveByIp should return an slave it if exists", func() {
-			mesosAgent, _ := monitor.GetMesosAgentByIP("10.0.0.2")
-			So(mesosAgent.ID, ShouldEqual, "mesosslave1")
-		})
-		Convey("GetMesosSlaveByIp should return an error if it doesn't exists", func() {
-			_, err := monitor.GetMesosAgentByIP("10.0.0.10")
-			So(err, ShouldNotBeNil)
-		})
-	})
-}
-
 func TestGetMesosFrameworks(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
