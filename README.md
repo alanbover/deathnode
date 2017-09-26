@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/alanbover/deathnode.svg?branch=master)](https://travis-ci.org/alanbover/deathnode)
 [![Go Report Card](https://goreportcard.com/badge/github.com/alanbover/deathnode)](https://goreportcard.com/report/github.com/alanbover/deathnode)
-[![Coverage Status](https://coveralls.io/repos/github/alanbover/deathnode/badge.svg?branch=enable_travis_and_improve_doc)](https://coveralls.io/github/alanbover/deathnode?branch=enable_travis_and_improve_doc)
+[![Coverage Status](https://coveralls.io/repos/github/alanbover/deathnode/badge.svg?branch=master)](https://coveralls.io/github/alanbover/deathnode?branch=master)
 
 ## Purpose
 Gracefully Mesos agent destroy system for AWS Autoscaling.
