@@ -5,6 +5,7 @@ import "flag"
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/monitor"
 	"github.com/alanbover/deathnode/deathnode"
 	"github.com/alanbover/deathnode/mesos"
 	log "github.com/sirupsen/logrus"
@@ -32,13 +33,13 @@ func main() {
 	if err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
 	}
-	autoscalingGroups, _ := aws.NewAutoscalingGroups(awsConn, autoscalingGroupPrefixes, deathNodeMark)
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupPrefixes, deathNodeMark)
 
 	// Create the Mesos monitor
 	mesosConn := &mesos.Client{
 		MasterURL: mesosURL,
 	}
-	mesosMonitor := mesos.NewMonitor(mesosConn, protectedFrameworks)
+	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks)
 
 	// Create deathnoteWatcher
 	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, deathNodeMark)
@@ -51,7 +52,7 @@ func main() {
 	}
 }
 
-func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroups,
+func run(mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupsMonitor,
 	deathNodeWatcher *deathnode.Watcher) {
 
 	log.Debug("New check triggered")
@@ -60,7 +61,7 @@ func run(mesosMonitor *mesos.Monitor, autoscalingGroups *aws.AutoscalingGroups,
 	mesosMonitor.Refresh()
 
 	// For each autoscaling monitor, check if any instances needs to be removed
-	for _, autoscalingGroup := range autoscalingGroups.GetMonitors() {
+	for _, autoscalingGroup := range autoscalingGroups.GetAllMonitors() {
 		deathNodeWatcher.RemoveUndesiredInstances(autoscalingGroup)
 	}
 

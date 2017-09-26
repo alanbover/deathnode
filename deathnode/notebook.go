@@ -5,7 +5,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
-	"github.com/alanbover/deathnode/mesos"
+	"github.com/alanbover/deathnode/monitor"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
 	"time"
@@ -13,16 +13,16 @@ import (
 
 // Notebook stores the necessary information for deal with instances that should be deleted
 type Notebook struct {
-	mesosMonitor        *mesos.Monitor
+	mesosMonitor        *monitor.MesosMonitor
 	awsConnection       aws.ClientInterface
-	autoscalingGroups   *aws.AutoscalingGroups
+	autoscalingGroups   *monitor.AutoscalingGroupsMonitor
 	delayDeleteSeconds  int
 	lastDeleteTimestamp time.Time
 	deathNodeMark       string
 }
 
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
-func NewNotebook(autoscalingGroups *aws.AutoscalingGroups, awsConn aws.ClientInterface, mesosMonitor *mesos.Monitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
+func NewNotebook(autoscalingGroups *monitor.AutoscalingGroupsMonitor, awsConn aws.ClientInterface, mesosMonitor *monitor.MesosMonitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,
@@ -80,7 +80,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 		}
 
 		// If the instance have no tasks from protected frameworks, delete it
-		hasFrameworks := n.mesosMonitor.DoesAgentHasProtectedFrameworksTasks(*instance.PrivateIpAddress)
+		hasFrameworks := n.mesosMonitor.HasProtectedFrameworksTasks(*instance.PrivateIpAddress)
 		if !hasFrameworks {
 			log.Infof("Destroy instance %s", *instance.InstanceId)
 			err := n.awsConnection.TerminateInstance(*instance.InstanceId)
@@ -91,6 +91,8 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 				n.lastDeleteTimestamp = time.Now()
 				continue
 			}
+		} else {
+			log.Debugf("Instance %s can't be deleted. It contains tasks from protected frameworks", *instance.InstanceId)
 		}
 	}
 

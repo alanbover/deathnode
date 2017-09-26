@@ -11,10 +11,10 @@ import (
 
 // ClientInterface is an interface for mesos api clients
 type ClientInterface interface {
-	getMesosTasks() (*TasksResponse, error)
-	getMesosFrameworks() (*FrameworksResponse, error)
-	getMesosSlaves() (*SlavesResponse, error)
-	setHostsInMaintenance(map[string]string) error
+	GetMesosTasks() (*TasksResponse, error)
+	GetMesosFrameworks() (*FrameworksResponse, error)
+	GetMesosAgents() (*SlavesResponse, error)
+	SetHostsInMaintenance(map[string]string) error
 }
 
 // Client implements a client for mesos api
@@ -93,20 +93,19 @@ type MaintenanceStart struct {
 	Nanoseconds int32 `json:"nanoseconds"`
 }
 
-func (c *Client) setHostsInMaintenance(hosts map[string]string) error {
+// SetHostsInMaintenance configures nodes in maintenance for Mesos cluster
+func (c *Client) SetHostsInMaintenance(hosts map[string]string) error {
 
 	url := fmt.Sprintf(c.MasterURL + "/maintenance/schedule")
 
-	payload, err := generateTemplate(hosts)
-	if err != nil {
-		return err
-	}
+	payload := genMaintenanceCallPayload(hosts)
 
-	err = mesosPostAPICall(url, payload)
+	err := mesosPostAPICall(url, payload)
 	return err
 }
 
-func (c *Client) getMesosTasks() (*TasksResponse, error) {
+// GetMesosTasks return the running tasks on the Mesos cluster
+func (c *Client) GetMesosTasks() (*TasksResponse, error) {
 
 	var tasks TasksResponse
 	c.getMesosTasksRecursive(&tasks, 0)
@@ -132,7 +131,8 @@ func (c *Client) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int
 	return nil
 }
 
-func (c *Client) getMesosFrameworks() (*FrameworksResponse, error) {
+// GetMesosFrameworks returns the registered frameworks in Mesos
+func (c *Client) GetMesosFrameworks() (*FrameworksResponse, error) {
 
 	url := fmt.Sprintf(c.MasterURL + "/master/frameworks")
 
@@ -142,7 +142,8 @@ func (c *Client) getMesosFrameworks() (*FrameworksResponse, error) {
 	return &frameworks, nil
 }
 
-func (c *Client) getMesosSlaves() (*SlavesResponse, error) {
+// GetMesosAgents returns the Mesos Agents registered in the Mesos cluster
+func (c *Client) GetMesosAgents() (*SlavesResponse, error) {
 
 	url := fmt.Sprintf(c.MasterURL + "/master/slaves")
 
@@ -152,7 +153,7 @@ func (c *Client) getMesosSlaves() (*SlavesResponse, error) {
 	return &slaves, nil
 }
 
-func generateTemplate(hosts map[string]string) ([]byte, error) {
+func genMaintenanceCallPayload(hosts map[string]string) []byte {
 
 	maintenanceMachinesIDs := []MaintenanceMachinesID{}
 	for host := range hosts {
@@ -176,12 +177,8 @@ func generateTemplate(hosts map[string]string) ([]byte, error) {
 		Windows: []MaintenanceWindow{maintenanceWindow},
 	}
 
-	template, err := json.Marshal(maintenanceRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	return template, nil
+	template, _ := json.Marshal(maintenanceRequest)
+	return template
 }
 
 func mesosGetAPICall(url string, response interface{}) error {

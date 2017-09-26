@@ -2,7 +2,7 @@ package deathnode
 
 import (
 	"fmt"
-	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/monitor"
 	"strings"
 )
 
@@ -18,18 +18,18 @@ func newRecommender(recommenderType string) (recommender, error) {
 }
 
 type recommender interface {
-	find(mesosAgents []*aws.InstanceMonitor) *aws.InstanceMonitor
+	find(mesosAgents []*monitor.InstanceMonitor) *monitor.InstanceMonitor
 }
 
 type firstAvailableAgent struct{}
 
-func (c *firstAvailableAgent) find(mesosAgents []*aws.InstanceMonitor) *aws.InstanceMonitor {
+func (c *firstAvailableAgent) find(mesosAgents []*monitor.InstanceMonitor) *monitor.InstanceMonitor {
 	return mesosAgents[0]
 }
 
 type smallestInstanceID struct{}
 
-func (c *smallestInstanceID) find(mesosAgents []*aws.InstanceMonitor) *aws.InstanceMonitor {
+func (c *smallestInstanceID) find(mesosAgents []*monitor.InstanceMonitor) *monitor.InstanceMonitor {
 	mesosAgentSmallestInstanceID := mesosAgents[0]
 	for _, mesosAgent := range mesosAgents {
 		if strings.Compare(mesosAgent.GetInstanceID(), mesosAgentSmallestInstanceID.GetInstanceID()) < 0 {

@@ -1,3 +1,5 @@
+// +build !test
+
 package aws
 
 import (
@@ -20,7 +22,7 @@ type sessionParameters struct {
 
 func newAwsSession(parameters *sessionParameters) (*session.Session, error) {
 	if parameters.region == "" {
-		return nil, errors.New("Missing aws region (required).")
+		return nil, errors.New("missing aws region (required)")
 	}
 
 	sess := session.New(&aws.Config{Region: aws.String(parameters.region)})

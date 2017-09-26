@@ -3,21 +3,20 @@ package deathnode
 // Given an autoscaling group, decides which is/are the best agent/s to kill
 
 import (
-	"github.com/alanbover/deathnode/aws"
-	"github.com/alanbover/deathnode/mesos"
+	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 )
 
 // Watcher stores the enough information for decide, if instances need to be removed, which ones are the best
 type Watcher struct {
 	notebook     *Notebook
-	mesosMonitor *mesos.Monitor
+	mesosMonitor *monitor.MesosMonitor
 	constraints  constraint
 	recommender  recommender
 }
 
 // NewWatcher returns a new Watcher object
-func NewWatcher(notebook *Notebook, mesosMonitor *mesos.Monitor, constraintType, recommenderType string) *Watcher {
+func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, constraintType, recommenderType string) *Watcher {
 
 	contrainsts, err := newConstraint(constraintType)
 	if err != nil {
@@ -39,7 +38,7 @@ func NewWatcher(notebook *Notebook, mesosMonitor *mesos.Monitor, constraintType,
 
 // RemoveUndesiredInstances finds, if any instances to be removed for an autoscaling group, the best instances to
 // kill and marks them to be removed
-func (y *Watcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGroupMonitor) error {
+func (y *Watcher) RemoveUndesiredInstances(autoscalingMonitor *monitor.AutoscalingGroupMonitor) error {
 
 	numUndesiredInstances := autoscalingMonitor.NumUndesiredInstances()
 	log.Debugf("Undesired Mesos Agents: %d", numUndesiredInstances)
@@ -47,7 +46,7 @@ func (y *Watcher) RemoveUndesiredInstances(autoscalingMonitor *aws.AutoscalingGr
 	removedInstances := 0
 
 	for removedInstances < numUndesiredInstances {
-		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstancesNotMarkedToBeRemoved())
+		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstances())
 		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
 		log.Debugf("Mark instance %s for removal", bestInstanceToKill.GetInstanceID())
 		err := bestInstanceToKill.MarkToBeRemoved()
