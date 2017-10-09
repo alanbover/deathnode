@@ -78,9 +78,10 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			continue
 		}
 
-		// If the instance have no tasks from protected frameworks, delete it
-		hasFrameworks := n.mesosMonitor.HasProtectedFrameworksTasks(*instance.PrivateIpAddress)
-		if !hasFrameworks {
+		// If the instance can be killed, delete it
+		isProtected := n.mesosMonitor.IsProtected(*instance.PrivateIpAddress)
+
+		if !isProtected {
 			if instanceMonitor.GetLifecycleState() == "Terminating:Wait" {
 				log.Infof("Destroy instance %s", *instanceMonitor.GetInstanceID())
 				err := n.awsConnection.CompleteLifecycleAction(instanceMonitor.GetAutoscalingGroupID(), instanceMonitor.GetInstanceID())
@@ -94,8 +95,6 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			} else {
 				log.Debugf("Instance %s waiting for AWS to start termination lifecycle", *instance.InstanceId)
 			}
-		} else {
-			log.Debugf("Instance %s can't be deleted. It contains tasks from protected frameworks", *instance.InstanceId)
 		}
 	}
 

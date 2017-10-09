@@ -90,13 +90,13 @@ func (c *ConnectionMock) PutLifeCycleHook(autoscalingGroupName *string, heartbea
 }
 
 // CompleteLifecycleAction is a mock call for testing purposes
-func (c* ConnectionMock) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
+func (c *ConnectionMock) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
 
 	c.addRequests("CompleteLifecycleAction", []string{*autoscalingGroupName, *instanceID})
 	return nil
 }
 
-func (c* ConnectionMock) addRequests(funcName string, parameters []string) {
+func (c *ConnectionMock) addRequests(funcName string, parameters []string) {
 
 	if c.Requests == nil {
 		c.Requests = map[string][][]string{}

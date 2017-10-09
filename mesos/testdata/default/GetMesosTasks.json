@@ -10,6 +10,12 @@
           "state": "TASK_RUNNING",
           "timestamp": 123456.786543
         }
+      ],
+      "labels": [
+        {
+          "key":"DEATHNODE_PROTECTED",
+          "value":"true"
+        }
       ]
     },
     {
@@ -21,6 +27,12 @@
         {
           "state": "TASK_RUNNING",
           "timestamp": 123456.786543
+        }
+      ],
+      "labels": [
+        {
+          "key":"DEATHNODE_PROTECTED",
+          "value":"false"
         }
       ]
     },

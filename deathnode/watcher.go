@@ -30,10 +30,10 @@ func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, autoscal
 	}
 
 	return &Watcher{
-		notebook:     notebook,
-		mesosMonitor: mesosMonitor,
-		constraints:  contrainsts,
-		recommender:  recommender,
+		notebook:          notebook,
+		mesosMonitor:      mesosMonitor,
+		constraints:       contrainsts,
+		recommender:       recommender,
 		autoscalingGroups: autoscalingGroups,
 	}
 }

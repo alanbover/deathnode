@@ -2,8 +2,8 @@ package monitor
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/alanbover/deathnode/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"time"
 )
 
@@ -34,12 +34,12 @@ func newInstanceMonitor(conn aws.ClientInterface, autoscalingGroupID, instanceID
 
 	return &InstanceMonitor{
 		instance: &instance{
-			autoscalingGroupID:   autoscalingGroupID,
-			ipAddress:            *response.PrivateIpAddress,
-			instanceID:           instanceID,
-			isMarkedToBeRemoved:  isMarkedToBeRemoved(response.Tags, deathNodeMark),
-			lifecycleState:       lifecycleState,
-			isProtected:	      isProtected,
+			autoscalingGroupID:  autoscalingGroupID,
+			ipAddress:           *response.PrivateIpAddress,
+			instanceID:          instanceID,
+			isMarkedToBeRemoved: isMarkedToBeRemoved(response.Tags, deathNodeMark),
+			lifecycleState:      lifecycleState,
+			isProtected:         isProtected,
 		},
 		awsConnection: conn,
 		deathNodeMark: deathNodeMark,
@@ -67,7 +67,7 @@ func (a *InstanceMonitor) GetAutoscalingGroupID() *string {
 }
 
 // RemoveInstanceProtection removes the instance protection for the autoscaling
-func (a* InstanceMonitor) RemoveInstanceProtection() error {
+func (a *InstanceMonitor) RemoveInstanceProtection() error {
 	err := a.awsConnection.RemoveASGInstanceProtection(&a.instance.autoscalingGroupID, []*string{&a.instance.instanceID})
 	if err != nil {
 		return err

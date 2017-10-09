@@ -11,11 +11,10 @@ import (
 )
 
 const (
-	lifecycleHookName = "DEATHNODE"
-	continueString = "CONTINUE"
+	lifecycleHookName                   = "DEATHNODE"
+	continueString                      = "CONTINUE"
 	lifecycleTransitionTerminationState = "autoscaling:EC2_INSTANCE_TERMINATING"
 )
-
 
 // Client holds the AWS SDK objects for call AWS API
 type Client struct {
@@ -47,7 +46,6 @@ func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Clien
 		iamSession: iamSession,
 	})
 
-
 	if err != nil {
 		fmt.Print("Error trying to create AWS session. ", err)
 	}
@@ -59,13 +57,13 @@ func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Clien
 }
 
 // CompleteLifecycleAction completes a lifecycle event for an instance pending to be deleted
-func (c* Client) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
+func (c *Client) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
 
-	completeLifecycleActionInput := &autoscaling.CompleteLifecycleActionInput {
-		AutoScalingGroupName: autoscalingGroupName,
-		InstanceId: instanceID,
+	completeLifecycleActionInput := &autoscaling.CompleteLifecycleActionInput{
+		AutoScalingGroupName:  autoscalingGroupName,
+		InstanceId:            instanceID,
 		LifecycleActionResult: aws.String(continueString),
-		LifecycleHookName: aws.String(lifecycleHookName),
+		LifecycleHookName:     aws.String(lifecycleHookName),
 	}
 
 	_, err := c.autoscaling.CompleteLifecycleAction(completeLifecycleActionInput)
@@ -77,7 +75,7 @@ func (c *Client) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
 
 	describeLifecycleHooksInput := &autoscaling.DescribeLifecycleHooksInput{
 		AutoScalingGroupName: autoscalingGroupName,
-		LifecycleHookNames: []*string{aws.String(lifecycleHookName)},
+		LifecycleHookNames:   []*string{aws.String(lifecycleHookName)},
 	}
 
 	describeLifecycleHooksOutput, err := c.autoscaling.DescribeLifecycleHooks(describeLifecycleHooksInput)
@@ -93,10 +91,10 @@ func (c *Client) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout
 
 	putLifecycleHookInput := &autoscaling.PutLifecycleHookInput{
 		AutoScalingGroupName: autoscalingGroupName,
-		DefaultResult: aws.String(continueString),
-		HeartbeatTimeout: heartbeatTimeout,
-		LifecycleHookName: aws.String(lifecycleHookName),
-		LifecycleTransition: aws.String(lifecycleTransitionTerminationState),
+		DefaultResult:        aws.String(continueString),
+		HeartbeatTimeout:     heartbeatTimeout,
+		LifecycleHookName:    aws.String(lifecycleHookName),
+		LifecycleTransition:  aws.String(lifecycleTransitionTerminationState),
 	}
 
 	_, err := c.autoscaling.PutLifecycleHook(putLifecycleHookInput)

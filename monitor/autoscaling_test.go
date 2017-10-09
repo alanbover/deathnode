@@ -1,9 +1,9 @@
 package monitor
 
 import (
-	"testing"
 	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestNewAutoscalingGroup(t *testing.T) {
@@ -70,7 +70,7 @@ func TestRefresh(t *testing.T) {
 				Records: map[string]*[]string{
 					"DescribeInstanceById": {
 						"default", "default", "default", "default", "default", "default"},
-					"DescribeAGByName":     {"default", "refresh"},
+					"DescribeAGByName": {"default", "refresh"},
 				},
 			})
 			monitors.Refresh()
@@ -196,7 +196,6 @@ func TestGetInstanceById(t *testing.T) {
 		})
 	})
 }
-
 
 func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 
