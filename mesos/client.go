@@ -58,6 +58,12 @@ type Task struct {
 	SlaveID     string   `json:"slave_id"`
 	FrameworkID string   `json:"framework_id"`
 	Statuses    []Status `json:"statuses"`
+	Labels      []Labels `json:"labels"`
+}
+
+type Labels struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 // Status is part of the mesos tasks response API endpoint

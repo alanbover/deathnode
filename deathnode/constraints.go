@@ -12,7 +12,7 @@ func newConstraint(constraintType string) (constraint, error) {
 	case "noContraint":
 		return &noConstraint{}, nil
 	default:
-		return nil, fmt.Errorf("Contraint type %v not found", constraintType)
+		return nil, fmt.Errorf("Constraint type %v not found", constraintType)
 	}
 }
 

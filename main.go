@@ -5,16 +5,16 @@ import "flag"
 
 import (
 	"github.com/alanbover/deathnode/aws"
-	"github.com/alanbover/deathnode/monitor"
 	"github.com/alanbover/deathnode/deathnode"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 )
 
 type arrayFlags []string
 
 var accessKey, secretKey, region, iamRole, iamSession, mesosURL, constraintsType, recommenderType, deathNodeMark string
-var autoscalingGroupPrefixes, protectedFrameworks arrayFlags
+var autoscalingGroupPrefixes, protectedFrameworks, protectedTasksLabels arrayFlags
 var pollingSeconds, delayDeleteSeconds int
 var debug bool
 
@@ -39,7 +39,7 @@ func main() {
 	mesosConn := &mesos.Client{
 		MasterURL: mesosURL,
 	}
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks)
+	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
 
 	// Create deathnoteWatcher
 	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, deathNodeMark)
@@ -82,7 +82,7 @@ func initFlags() {
 
 	flag.Var(&autoscalingGroupPrefixes, "autoscalingGroupName", "An autoscalingGroup prefix for monitor")
 	flag.Var(&protectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node")
-
+	flag.Var(&protectedTasksLabels, "protectedTaskLabels", "The Tasks protected with labels(boolean) to wait for kill the node")
 	// Move constraints to array, so we apply multiple
 	flag.StringVar(&constraintsType, "constraintsType", "noContraint", "The constrainst implementation to use")
 	flag.StringVar(&recommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use")

@@ -5,15 +5,17 @@ package monitor
 
 import (
 	"fmt"
-	"strings"
 	"github.com/alanbover/deathnode/mesos"
+	log "github.com/sirupsen/logrus"
+	"strings"
 )
 
 // MesosMonitor monitors the mesos cluster, creating a cache to reduce the number of calls against it
 type MesosMonitor struct {
-	mesosConn           mesos.ClientInterface
-	mesosCache          *mesosCache
-	protectedFrameworks []string
+	mesosConn            mesos.ClientInterface
+	mesosCache           *mesosCache
+	protectedFrameworks  []string
+	protectedTasksLabels []string
 }
 
 // MesosCache stores the objects of the mesosApi in a way that is directly accesible
@@ -21,29 +23,33 @@ type MesosMonitor struct {
 // frameworks: map[frameworkID]Framework
 // slaves: map[privateIPAddress]Slave
 type mesosCache struct {
-	tasks      map[string][]mesos.Task
-	frameworks map[string]mesos.Framework
-	slaves     map[string]mesos.Slave
+	tasks                   map[string][]mesos.Task
+	frameworks              map[string]mesos.Framework
+	slaves                  map[string]mesos.Slave
+	tasksWithLabelProtected map[string][]mesos.Task
 }
 
 // NewMesosMonitor returns a new mesos.monitor object
-func NewMesosMonitor(mesosConn mesos.ClientInterface, protectedFrameworks []string) *MesosMonitor {
+func NewMesosMonitor(mesosConn mesos.ClientInterface, protectedFrameworks []string, protectedTasksLabels []string) *MesosMonitor {
 
 	return &MesosMonitor{
 		mesosConn: mesosConn,
 		mesosCache: &mesosCache{
-			tasks:      map[string][]mesos.Task{},
-			frameworks: map[string]mesos.Framework{},
-			slaves:     map[string]mesos.Slave{},
+			tasks:                   map[string][]mesos.Task{},
+			frameworks:              map[string]mesos.Framework{},
+			slaves:                  map[string]mesos.Slave{},
+			tasksWithLabelProtected: map[string][]mesos.Task{},
 		},
-		protectedFrameworks: protectedFrameworks,
+		protectedFrameworks:  protectedFrameworks,
+		protectedTasksLabels: protectedTasksLabels,
 	}
 }
 
 // Refresh updates the mesos cache
 func (m *MesosMonitor) Refresh() {
 
-	m.mesosCache.tasks = m.getTasks()
+	m.mesosCache.tasks, m.mesosCache.tasksWithLabelProtected = m.getTasks()
+
 	m.mesosCache.frameworks = m.getProtectedFrameworks()
 	m.mesosCache.slaves = m.getSlaves()
 }
@@ -79,16 +85,24 @@ func (m *MesosMonitor) getAgentIPAddressFromPID(pid string) string {
 	return strings.Split(tmp, ":")[0]
 }
 
-func (m *MesosMonitor) getTasks() map[string][]mesos.Task {
+func (m *MesosMonitor) getTasks() (map[string][]mesos.Task, map[string][]mesos.Task) {
 
 	tasksMap := map[string][]mesos.Task{}
+	tasksWithLabelProtectedMap := map[string][]mesos.Task{}
 	tasksResponse, _ := m.mesosConn.GetMesosTasks()
 	for _, task := range tasksResponse.Tasks {
 		if task.State == "TASK_RUNNING" {
 			tasksMap[task.SlaveID] = append(tasksMap[task.SlaveID], task)
+			for _, label := range task.Labels {
+				for _, protectedTasksLabel := range m.protectedTasksLabels {
+					if label.Key == protectedTasksLabel && strings.ToUpper(label.Value) == "TRUE" {
+						tasksWithLabelProtectedMap[task.Name] = append(tasksWithLabelProtectedMap[task.Name], task)
+					}
+				}
+			}
 		}
 	}
-	return tasksMap
+	return tasksMap, tasksWithLabelProtectedMap
 }
 
 // GetMesosAgentByIP returns the Mesos slave that matches a certain IP
@@ -109,17 +123,45 @@ func (m *MesosMonitor) SetMesosAgentsInMaintenance(hosts map[string]string) erro
 
 // HasProtectedFrameworksTasks returns true if the mesos agent has any tasks running from any of the
 // protected frameworks.
-func (m *MesosMonitor) HasProtectedFrameworksTasks(ipAddress string) bool {
+func (m *MesosMonitor) HasProtectedFrameworksTasks(ipAddress string) (bool, *mesos.Framework) {
 
 	slaveID := m.mesosCache.slaves[ipAddress].ID
 	fmt.Println(m.mesosCache.slaves)
 	slaveTasks := m.mesosCache.tasks[slaveID]
 	for _, task := range slaveTasks {
-		_, ok := m.mesosCache.frameworks[task.FrameworkID]
+		framework, ok := m.mesosCache.frameworks[task.FrameworkID]
 		if ok {
-			return true
+			return true, &framework
 		}
 	}
 
-	return false
+	return false, nil
+}
+
+// HasProtectedLabelsTasks returns true if the mesos agent has any label tasks running from any of the
+// protected label.
+func (m *MesosMonitor) HasProtectedLabelTasks(ipAddress string) (bool, *mesos.Task) {
+
+	slaveID := m.mesosCache.slaves[ipAddress].ID
+	fmt.Println(m.mesosCache.slaves)
+	slaveTasks := m.mesosCache.tasks[slaveID]
+	for _, task := range slaveTasks {
+		log.Infof("Searching Task %v removed. Deleting it", task)
+		_, ok := m.mesosCache.tasksWithLabelProtected[task.Name]
+		if ok {
+			return true, &task
+		}
+	}
+
+	return false, nil
+}
+
+func (m *MesosMonitor) IsProtected(ipAddress string) (bool, string) {
+	if hasProtectedTasks, task := m.HasProtectedLabelTasks(ipAddress); hasProtectedTasks {
+		return hasProtectedTasks, fmt.Sprintf("Task %s is protected, preventing Deathnode for killing it", task.Name)
+	}
+	if hasProtectedFrameworks, framework := m.HasProtectedFrameworksTasks(ipAddress); hasProtectedFrameworks {
+		return hasProtectedFrameworks, fmt.Sprintf("Framework %s is running on node, preventing Deathnode for killing it", framework.Name)
+	}
+	return false, ""
 }

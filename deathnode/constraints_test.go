@@ -1,10 +1,10 @@
 package deathnode
 
 import (
-	"testing"
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/monitor"
 	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestConstraints(t *testing.T) {

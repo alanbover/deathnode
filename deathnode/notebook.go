@@ -79,9 +79,10 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 			continue
 		}
 
-		// If the instance have no tasks from protected frameworks, delete it
-		hasFrameworks := n.mesosMonitor.HasProtectedFrameworksTasks(*instance.PrivateIpAddress)
-		if !hasFrameworks {
+		// If the instance can be killed, delete it
+		isProtected, message := n.mesosMonitor.IsProtected(*instance.PrivateIpAddress)
+
+		if !isProtected {
 			log.Infof("Destroy instance %s", *instance.InstanceId)
 			err := n.awsConnection.TerminateInstance(*instance.InstanceId)
 			if err != nil {
@@ -92,7 +93,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 				continue
 			}
 		} else {
-			log.Debugf("Instance %s can't be deleted. It contains tasks from protected frameworks", *instance.InstanceId)
+			log.Debugf("Instance %s can't be deleted. %s", *instance.InstanceId, message)
 		}
 	}
 
