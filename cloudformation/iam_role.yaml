@@ -34,17 +34,27 @@ Resources:
                       {
                          "Effect" : "Allow",
                          "Resource" : "*",
-                         "Action" : "autoscaling:DetachInstances"
-                      },
-                      {
-                         "Effect" : "Allow",
-                         "Resource" : "*",
                          "Action" : "autoscaling:UpdateAutoScalingGroup"
                       },
                       {
                          "Resource" : "*",
                          "Effect" : "Allow",
                          "Action" : "autoscaling:SetInstanceProtection"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:DescribeLifecycleHooks"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:PutLifeCycleHook"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:CompleteLifecycleAction"
                       }
                    ]
                 }

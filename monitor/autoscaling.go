@@ -98,7 +98,13 @@ func (a *AutoscalingGroupsMonitor) Refresh() error {
 
 				ok, _ := a.awsConnection.HasLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName)
 				if !ok {
-					a.awsConnection.PutLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName, &lifeCycleTimeout)
+					log.Infof("Setting lifecyclehook for autoscaling %s", *autoscalingGroupResponse.AutoScalingGroupName)
+					err := a.awsConnection.PutLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName, &lifeCycleTimeout)
+					if err != nil {
+						log.Warnf("Error putting lifecyclehook to autoscaling %s: %s", *autoscalingGroupResponse.AutoScalingGroupName, err)
+					}
+				} else {
+					log.Infof("Autoscaling %s already have set lifecyclehook. Ignoring it...", *autoscalingGroupResponse.AutoScalingGroupName)
 				}
 
 				a.monitors[autoscalingGroupPrefix][*autoscalingGroupResponse.AutoScalingGroupName] = autoscalingGroupMonitor
@@ -154,6 +160,8 @@ func (a *AutoscalingGroupMonitor) refresh(autoscalingGroup *autoscaling.Group) e
 		if err != nil {
 			return err
 		}
+	} else {
+		log.Debugf("Autoscaling %s already has scaleInProtection set. Ignoring it...", *autoscalingGroup.AutoScalingGroupName)
 	}
 
 	a.autoscaling.desiredCapacity = *autoscalingGroup.DesiredCapacity
