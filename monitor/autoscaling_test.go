@@ -86,6 +86,10 @@ func TestRefresh(t *testing.T) {
 			Convey("it should have one undesired instance", func() {
 				So(monitor.NumUndesiredInstances(), ShouldEqual, 1)
 			})
+			Convey("lifecycleState should have been updated", func() {
+				lcState := monitor.autoscaling.instanceMonitors["i-34719eb8"].instance.lifecycleState
+				So(lcState, ShouldEqual, "Terminating:Wait")
+			})
 		})
 		Convey("and a new one appears", func() {
 			monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
@@ -114,45 +118,31 @@ func TestRefresh(t *testing.T) {
 	})
 }
 
-func TestSetInstanceProtection(t *testing.T) {
+func TestInitializeAutoscalingGroup(t *testing.T) {
 
 	Convey("When creating an AutoscalingGroup", t, func() {
 		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"instance_profile_disabled"},
+				"HasLifeCycleHook":     {"false"},
 			},
 		}
 		newTestAutoscalingMonitors(awsConn)
-		callArguments := awsConn.Requests["SetASGInstanceProtection"]
 		Convey("instances should have been set with instanceProtection flag", func() {
+			callArguments := awsConn.Requests["SetASGInstanceProtection"]
 			So(callArguments, ShouldNotBeNil)
 			So(len(callArguments), ShouldBeGreaterThanOrEqualTo, 1)
 			So(len(callArguments[0]), ShouldBeGreaterThanOrEqualTo, 1)
 			So(callArguments[0][0], ShouldEqual, "some-Autoscaling-Group")
 			So(callArguments[0][1], ShouldEqual, "i-34719eb8")
 		})
-	})
-}
-
-func TestGetAutoscalingNameByInstanceId(t *testing.T) {
-
-	Convey("GetAutoscalingNameByInstanceID should", t, func() {
-		monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
-			Records: map[string]*[]string{
-				"DescribeInstanceById": {"default", "default", "default"},
-				"DescribeAGByName":     {"default"},
-			},
-		})
-		Convey("return an autoscalingGroupName if the instance belongs to a monitored Autoscaling", func() {
-			asgName, found := monitors.GetAutoscalingNameByInstanceID("i-34719eb8")
-			So(asgName, ShouldEqual, "some-Autoscaling-Group")
-			So(found, ShouldBeTrue)
-		})
-		Convey("return not found if the instance doesn't belong to any monitored Autoscaling", func() {
-			asgName, found := monitors.GetAutoscalingNameByInstanceID("i-doesntexist")
-			So(asgName, ShouldEqual, "")
-			So(found, ShouldBeFalse)
+		Convey("a lifecycleHook should have been added", func() {
+			callArguments := awsConn.Requests["PutLifeCycleHook"]
+			So(len(callArguments), ShouldEqual, 1)
+			So(len(callArguments[0]), ShouldBeGreaterThanOrEqualTo, 1)
+			So(callArguments[0][0], ShouldEqual, "some-Autoscaling-Group")
+			So(callArguments[0][1], ShouldEqual, "900")
 		})
 	})
 }
@@ -178,13 +168,35 @@ func TestGetInstances(t *testing.T) {
 		})
 		Convey("but after delete one instance", func() {
 			instanceToBeMarked := monitor.GetInstances()[0]
-			monitor.RemoveInstance(instanceToBeMarked)
+			delete(monitor.autoscaling.instanceMonitors, instanceToBeMarked.instance.instanceID)
 			Convey("GetInstances should not return it", func() {
 				So(instanceToBeMarked, ShouldNotBeIn, monitor.GetInstances())
 			})
 		})
 	})
 }
+
+func TestGetInstanceById(t *testing.T) {
+
+	Convey("When an autoscaling group with 3 instances is created", t, func() {
+
+		monitors := newTestAutoscalingMonitors(&aws.ConnectionMock{
+			Records: map[string]*[]string{
+				"DescribeInstanceById": {"default", "default", "default"},
+				"DescribeAGByName":     {"default"},
+			},
+		})
+		Convey("GetInstanceById should return an instanceMonitor if it exists", func() {
+			instance, _ := monitors.GetInstanceByID("i-34719eb8")
+			So(*instance.GetInstanceID(), ShouldEqual, "i-34719eb8")
+		})
+		Convey("GetInstanceById should return error if instance doesn't exist", func() {
+			_, err := monitors.GetInstanceByID("i-doesntexist")
+			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
 
 func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 

@@ -46,8 +46,8 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 
 // DestroyInstancesAttempt iterates around all instances marked to be deleted, and:
 // - set them in maintenance
-// - remove them from it's ASG
-// - remove the instance if there is no tasks running from the protected frameworks
+// - remove instance protection
+// - complete lifecycle action if there is no tasks running from the protected frameworks
 func (n *Notebook) DestroyInstancesAttempt() error {
 
 	// Get instances marked for removal
@@ -63,15 +63,14 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 	for _, instance := range instances {
 
 		log.Debugf("Starting process to delete instance %s", *instance.InstanceId)
-		// If the instance belongs to an Autoscaling group, remove it
-		autoscalingGroupName, found := n.autoscalingGroups.GetAutoscalingNameByInstanceID(*instance.InstanceId)
-		if found {
-			log.Infof("Remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
-			err := n.awsConnection.DetachInstance(autoscalingGroupName, *instance.InstanceId)
-			if err != nil {
-				log.Errorf("Unable to remove instance %s from autoscaling %s", *instance.InstanceId, autoscalingGroupName)
-			}
+
+		instanceMonitor, err := n.autoscalingGroups.GetInstanceByID(*instance.InstanceId)
+		if err != nil {
+			return err
 		}
+
+		// If the instance is protected, remove instance protection
+		n.removeInstanceProtection(instanceMonitor)
 
 		// Next iteration if an instance was previously deleted before delayDeleteSeconds
 		if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
@@ -82,19 +81,31 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 		// If the instance have no tasks from protected frameworks, delete it
 		hasFrameworks := n.mesosMonitor.HasProtectedFrameworksTasks(*instance.PrivateIpAddress)
 		if !hasFrameworks {
-			log.Infof("Destroy instance %s", *instance.InstanceId)
-			err := n.awsConnection.TerminateInstance(*instance.InstanceId)
-			if err != nil {
-				log.Errorf("Unable to destroy instance %s", *instance.InstanceId)
-			}
-			if n.delayDeleteSeconds != 0 {
-				n.lastDeleteTimestamp = time.Now()
-				continue
+			if instanceMonitor.GetLifecycleState() == "Terminating:Wait" {
+				log.Infof("Destroy instance %s", *instanceMonitor.GetInstanceID())
+				err := n.awsConnection.CompleteLifecycleAction(instanceMonitor.GetAutoscalingGroupID(), instanceMonitor.GetInstanceID())
+				if err != nil {
+					log.Errorf("Unable to complete lifecycle action on instance %s", *instance.InstanceId)
+				}
+				if n.delayDeleteSeconds != 0 {
+					n.lastDeleteTimestamp = time.Now()
+					continue
+				}
+			} else {
+				log.Debugf("Instance %s waiting for AWS to start termination lifecycle", *instance.InstanceId)
 			}
 		} else {
 			log.Debugf("Instance %s can't be deleted. It contains tasks from protected frameworks", *instance.InstanceId)
 		}
 	}
 
+	return nil
+}
+
+func (n *Notebook) removeInstanceProtection(instance *monitor.InstanceMonitor) error {
+
+	if instance.IsProtected() {
+		return instance.RemoveInstanceProtection()
+	}
 	return nil
 }

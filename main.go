@@ -43,31 +43,15 @@ func main() {
 
 	// Create deathnoteWatcher
 	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, deathNodeMark)
-	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, constraintsType, recommenderType)
+	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, autoscalingGroups, constraintsType, recommenderType)
 
 	ticker := time.NewTicker(time.Second * time.Duration(pollingSeconds))
 	for {
-		go run(mesosMonitor, autoscalingGroups, deathNodeWatcher)
+		go deathNodeWatcher.Run()
 		<-ticker.C
 	}
 }
 
-func run(mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupsMonitor,
-	deathNodeWatcher *deathnode.Watcher) {
-
-	log.Debug("New check triggered")
-	// Refresh autoscaling monitors and mesos monitor
-	autoscalingGroups.Refresh()
-	mesosMonitor.Refresh()
-
-	// For each autoscaling monitor, check if any instances needs to be removed
-	for _, autoscalingGroup := range autoscalingGroups.GetAllMonitors() {
-		deathNodeWatcher.RemoveUndesiredInstances(autoscalingGroup)
-	}
-
-	// Check if any agents are drained, so we can remove them from AWS
-	deathNodeWatcher.DestroyInstancesAttempt()
-}
 
 func initFlags() {
 

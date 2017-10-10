@@ -37,70 +37,77 @@ func (c *ConnectionMock) DescribeAGByName(autoscalingGroupName string) ([]*autos
 	return *mockResponse.(*[]*autoscaling.Group), nil
 }
 
-// DetachInstance is a mock call for testing purposes
-func (c *ConnectionMock) DetachInstance(autoscalingGroupName, instanceID string) error {
-
-	if c.Requests == nil {
-		c.Requests = map[string][][]string{}
-	}
-
-	c.Requests["DetachInstance"] = append(c.Requests["DetachInstance"], []string{autoscalingGroupName, instanceID})
-	return nil
-}
-
-// TerminateInstance is a mock call for testing purposes
-func (c *ConnectionMock) TerminateInstance(instanceID string) error {
-
-	if c.Requests == nil {
-		c.Requests = map[string][][]string{}
-	}
-
-	c.Requests["TerminateInstance"] = append(c.Requests["TerminateInstance"], []string{instanceID})
-	return nil
-}
-
 // SetASGInstanceProtection is a mock call for testing purposes
 func (c *ConnectionMock) SetASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error {
-
-	if c.Requests == nil {
-		c.Requests = map[string][][]string{}
-	}
 
 	inputValues := []string{*autoscalingGroupName}
 	for _, instanceID := range instanceIDs {
 		inputValues = append(inputValues, *instanceID)
 	}
 
-	c.Requests["SetASGInstanceProtection"] = append(c.Requests["SetASGInstanceProtection"], inputValues)
+	c.addRequests("SetASGInstanceProtection", inputValues)
+	return nil
+}
+
+// RemoveASGInstanceProtection is a mock call for testing purposes
+func (c *ConnectionMock) RemoveASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error {
+
+	inputValues := []string{*autoscalingGroupName}
+	for _, instanceID := range instanceIDs {
+		inputValues = append(inputValues, *instanceID)
+	}
+
+	c.addRequests("RemoveASGInstanceProtection", inputValues)
 	return nil
 }
 
 // SetInstanceTag is a mock call for testing purposes
 func (c *ConnectionMock) SetInstanceTag(key, value, instanceID string) error {
 
+	inputValues := []string{key, value, instanceID}
+	c.addRequests("SetInstanceTag", inputValues)
+	return nil
+}
+
+// HasLifeCycleHook is a mock call for testing purposes
+func (c *ConnectionMock) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
+
+	records, ok := c.Records["HasLifeCycleHook"]
+	if !ok {
+		return false, nil
+	}
+
+	hasLifeCycleHook := (*records)[0]
+	*records = (*records)[1:]
+	return hasLifeCycleHook == "true", nil
+}
+
+// PutLifeCycleHook is a mock call for testing purposes
+func (c *ConnectionMock) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error {
+
+	c.addRequests("PutLifeCycleHook", []string{*autoscalingGroupName, fmt.Sprintf("%d", *heartbeatTimeout)})
+	return nil
+}
+
+// CompleteLifecycleAction is a mock call for testing purposes
+func (c* ConnectionMock) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
+
+	c.addRequests("CompleteLifecycleAction", []string{*autoscalingGroupName, *instanceID})
+	return nil
+}
+
+func (c* ConnectionMock) addRequests(funcName string, parameters []string) {
+
 	if c.Requests == nil {
 		c.Requests = map[string][][]string{}
 	}
 
-	inputValues := []string{key, value, instanceID}
-
-	c.Requests["SetInstanceTag"] = append(c.Requests["SetInstanceTag"], inputValues)
-	return nil
+	c.Requests[funcName] = append(c.Requests[funcName], parameters)
 }
 
 func (c *ConnectionMock) replay(mockResponse interface{}, templateFileName string) (interface{}, error) {
 
-	records, ok := c.Records[templateFileName]
-	if !ok {
-		fmt.Printf("AWS Mock %v method called but not defined\n", templateFileName)
-		os.Exit(1)
-	}
-
-	if len(*records) == 0 {
-		fmt.Printf("AWS Mock replay called more times than configured for %v\n", templateFileName)
-		os.Exit(1)
-	}
-
+	records := c.getRecords(templateFileName)
 	currentRecord := (*records)[0]
 
 	fileContent, err := ioutil.ReadFile(getCurrentPath() + "/testdata" + "/" + currentRecord + "/" + templateFileName + ".json")
@@ -123,4 +130,19 @@ func getCurrentPath() string {
 
 	gopath := os.Getenv("GOPATH")
 	return filepath.Join(gopath, "src/github.com/alanbover/deathnode/aws")
+}
+
+func (c *ConnectionMock) getRecords(templateFileName string) *[]string {
+
+	records, ok := c.Records[templateFileName]
+	if !ok {
+		fmt.Printf("AWS Mock %v method called but not defined\n", templateFileName)
+		os.Exit(1)
+	}
+
+	if len(*records) == 0 {
+		fmt.Printf("AWS Mock replay called more times than configured for %v\n", templateFileName)
+		os.Exit(1)
+	}
+	return records
 }

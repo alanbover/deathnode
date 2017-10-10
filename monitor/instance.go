@@ -12,7 +12,9 @@ type instance struct {
 	launchConfiguration string
 	ipAddress           string
 	instanceID          string
-	markedToBeRemoved   bool
+	lifecycleState      string
+	isProtected         bool
+	isMarkedToBeRemoved bool
 }
 
 // InstanceMonitor monitors an AWS instance
@@ -22,7 +24,7 @@ type InstanceMonitor struct {
 	deathNodeMark string
 }
 
-func newInstanceMonitor(conn aws.ClientInterface, autoscalingGroupID, instanceID, deathNodeMark string) (*InstanceMonitor, error) {
+func newInstanceMonitor(conn aws.ClientInterface, autoscalingGroupID, instanceID, deathNodeMark, lifecycleState string, isProtected bool) (*InstanceMonitor, error) {
 
 	response, err := conn.DescribeInstanceByID(instanceID)
 
@@ -32,10 +34,12 @@ func newInstanceMonitor(conn aws.ClientInterface, autoscalingGroupID, instanceID
 
 	return &InstanceMonitor{
 		instance: &instance{
-			autoscalingGroupID: autoscalingGroupID,
-			ipAddress:          *response.PrivateIpAddress,
-			instanceID:         instanceID,
-			markedToBeRemoved:  isMarkedToBeRemoved(response.Tags, deathNodeMark),
+			autoscalingGroupID:   autoscalingGroupID,
+			ipAddress:            *response.PrivateIpAddress,
+			instanceID:           instanceID,
+			isMarkedToBeRemoved:  isMarkedToBeRemoved(response.Tags, deathNodeMark),
+			lifecycleState:       lifecycleState,
+			isProtected:	      isProtected,
 		},
 		awsConnection: conn,
 		deathNodeMark: deathNodeMark,
@@ -47,9 +51,34 @@ func (a *InstanceMonitor) GetIP() string {
 	return a.instance.ipAddress
 }
 
+// GetLifecycleState returns the lifeCycleState of the instance in the ASG
+func (a *InstanceMonitor) GetLifecycleState() string {
+	return a.instance.lifecycleState
+}
+
 // GetInstanceID returns the instanceId of the instance being monitored
-func (a *InstanceMonitor) GetInstanceID() string {
-	return a.instance.instanceID
+func (a *InstanceMonitor) GetInstanceID() *string {
+	return &a.instance.instanceID
+}
+
+// GetAutoscalingGroupID returns the AutoscalingGroupId of the instance being monitored
+func (a *InstanceMonitor) GetAutoscalingGroupID() *string {
+	return &a.instance.autoscalingGroupID
+}
+
+// RemoveInstanceProtection removes the instance protection for the autoscaling
+func (a* InstanceMonitor) RemoveInstanceProtection() error {
+	err := a.awsConnection.RemoveASGInstanceProtection(&a.instance.autoscalingGroupID, []*string{&a.instance.instanceID})
+	if err != nil {
+		return err
+	}
+	a.instance.isProtected = false
+	return nil
+}
+
+// IsProtected returns true if the instance has the flag instanceProtection in the ASG
+func (a *InstanceMonitor) IsProtected() bool {
+	return a.instance.isProtected
 }
 
 // MarkToBeRemoved sets a tag for the instance with:
@@ -57,8 +86,12 @@ func (a *InstanceMonitor) GetInstanceID() string {
 // Value: Current timestamp (epoch)
 func (a *InstanceMonitor) MarkToBeRemoved() error {
 	err := a.awsConnection.SetInstanceTag(a.deathNodeMark, getEpochAsString(), a.instance.instanceID)
-	a.instance.markedToBeRemoved = true
+	a.instance.isMarkedToBeRemoved = true
 	return err
+}
+
+func (a *InstanceMonitor) setLifecycleState(lifecycleState string) {
+	a.instance.lifecycleState = lifecycleState
 }
 
 func getEpochAsString() string {

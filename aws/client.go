@@ -10,6 +10,13 @@ import (
 	"strings"
 )
 
+const (
+	lifecycleHookName = "DEATHNODE"
+	continueString = "CONTINUE"
+	lifecycleTransitionTerminationState = "autoscaling:EC2_INSTANCE_TERMINATING"
+)
+
+
 // Client holds the AWS SDK objects for call AWS API
 type Client struct {
 	ec2         *ec2.EC2
@@ -21,10 +28,12 @@ type ClientInterface interface {
 	DescribeInstanceByID(instanceID string) (*ec2.Instance, error)
 	DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error)
 	DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error)
-	DetachInstance(autoscalingGroupName string, instanceID string) error
-	TerminateInstance(instanceID string) error
+	RemoveASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error
 	SetASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error
 	SetInstanceTag(key, value, instanceID string) error
+	HasLifeCycleHook(autoscalingGroupName *string) (bool, error)
+	PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error
+	CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error
 }
 
 // NewClient returns a new aws.client
@@ -38,6 +47,7 @@ func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Clien
 		iamSession: iamSession,
 	})
 
+
 	if err != nil {
 		fmt.Print("Error trying to create AWS session. ", err)
 	}
@@ -46,6 +56,51 @@ func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Clien
 		ec2:         ec2.New(session),
 		autoscaling: autoscaling.New(session),
 	}, nil
+}
+
+// CompleteLifecycleAction completes a lifecycle event for an instance pending to be deleted
+func (c* Client) CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error {
+
+	completeLifecycleActionInput := &autoscaling.CompleteLifecycleActionInput {
+		AutoScalingGroupName: autoscalingGroupName,
+		InstanceId: instanceID,
+		LifecycleActionResult: aws.String(continueString),
+		LifecycleHookName: aws.String(lifecycleHookName),
+	}
+
+	_, err := c.autoscaling.CompleteLifecycleAction(completeLifecycleActionInput)
+	return err
+}
+
+// HasLifeCycleHook checks if deathnode lifecyclehook is enabled for an autoscalingGroup
+func (c *Client) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
+
+	describeLifecycleHooksInput := &autoscaling.DescribeLifecycleHooksInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		LifecycleHookNames: []*string{aws.String(lifecycleHookName)},
+	}
+
+	describeLifecycleHooksOutput, err := c.autoscaling.DescribeLifecycleHooks(describeLifecycleHooksInput)
+	if err != nil {
+		return false, err
+	}
+
+	return len(describeLifecycleHooksOutput.LifecycleHooks) != 0, nil
+}
+
+// PutLifeCycleHook adds an INSTANCE_TERMINATING lifecycle hook to an autoscalingGroup
+func (c *Client) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error {
+
+	putLifecycleHookInput := &autoscaling.PutLifecycleHookInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		DefaultResult: aws.String(continueString),
+		HeartbeatTimeout: heartbeatTimeout,
+		LifecycleHookName: aws.String(lifecycleHookName),
+		LifecycleTransition: aws.String(lifecycleTransitionTerminationState),
+	}
+
+	_, err := c.autoscaling.PutLifecycleHook(putLifecycleHookInput)
+	return err
 }
 
 // DescribeAGByName returns all autoscaling groups that matches a certain prefix
@@ -96,23 +151,6 @@ func appendASGByPrefix(asgResponse, asgToFilter []*autoscaling.Group, prefix str
 	}
 
 	return asgResponse
-}
-
-// DetachInstance removes an instance from an autoscaling group
-func (c *Client) DetachInstance(autoscalingGroupName, instanceID string) error {
-
-	instanceIds := []*string{&instanceID}
-	shouldDecrementDesiredCapacity := false
-
-	detachInstancesInput := &autoscaling.DetachInstancesInput{
-		AutoScalingGroupName:           &autoscalingGroupName,
-		InstanceIds:                    instanceIds,
-		ShouldDecrementDesiredCapacity: &shouldDecrementDesiredCapacity,
-	}
-
-	c.autoscaling.DetachInstances(detachInstancesInput)
-
-	return nil
 }
 
 // DescribeInstanceByID returns the instance that matches an instanceID
@@ -175,16 +213,17 @@ func (c *Client) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) 
 	return instances, nil
 }
 
-// TerminateInstance shutdown and deletes an instance in AWS
-func (c *Client) TerminateInstance(instanceID string) error {
+// RemoveASGInstanceProtection remove ProtectFromScaleIn flag from some instances from an autoscalingGroup
+func (c *Client) RemoveASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
 
-	instanceIds := []*string{&instanceID}
-
-	terminateInstancesInput := &ec2.TerminateInstancesInput{
-		InstanceIds: instanceIds,
+	protectedFromScaleIn := false
+	setInstanceProtectionInput := &autoscaling.SetInstanceProtectionInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		InstanceIds:          instanceIds,
+		ProtectedFromScaleIn: &protectedFromScaleIn,
 	}
 
-	_, err := c.ec2.TerminateInstances(terminateInstancesInput)
+	_, err := c.autoscaling.SetInstanceProtection(setInstanceProtectionInput)
 
 	return err
 }
