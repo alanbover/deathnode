@@ -27,7 +27,7 @@ type autoscalingGroup struct {
 	instanceMonitors     map[string]*InstanceMonitor
 }
 
-var lifeCycleTimeout int64 = 900
+var lifeCycleTimeout int64 = 3600
 
 // NewAutoscalingGroupMonitors returns an AutoscalingGroups object
 func NewAutoscalingGroupMonitors(awsConnection aws.ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupsMonitor, error) {

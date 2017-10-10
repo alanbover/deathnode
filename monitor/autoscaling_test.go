@@ -142,7 +142,7 @@ func TestInitializeAutoscalingGroup(t *testing.T) {
 			So(len(callArguments), ShouldEqual, 1)
 			So(len(callArguments[0]), ShouldBeGreaterThanOrEqualTo, 1)
 			So(callArguments[0][0], ShouldEqual, "some-Autoscaling-Group")
-			So(callArguments[0][1], ShouldEqual, "900")
+			So(callArguments[0][1], ShouldEqual, "3600")
 		})
 	})
 }
