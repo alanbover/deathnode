@@ -92,11 +92,26 @@ func TestLifecycleState(t *testing.T) {
 				"DescribeInstanceById": {"default"},
 			},
 		}
-		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", false)
+		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", true)
 		Convey("and we call SetLifecycleState", func() {
-			monitor.setLifecycleState("Terminating:Wait")
-			Convey("instance should have net LifecycleState value", func() {
-				So(monitor.instance.lifecycleState, ShouldEqual, "Terminating:Wait")
+			Convey("when the instance has instanceProtection enabled", func() {
+				monitor.setLifecycleState(LifecycleStateTerminatingWait)
+				Convey("instance should have new LifecycleState value", func() {
+					So(monitor.instance.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
+				})
+				Convey("MarkToBeRemoved should have been called", func() {
+					So(conn.Requests["SetInstanceTag"], ShouldNotBeNil)
+				})
+			})
+			Convey("when the instance has instanceProtection disabled", func() {
+				monitor.instance.isProtected = false
+				monitor.setLifecycleState(LifecycleStateTerminatingWait)
+				Convey("instance should have new LifecycleState value", func() {
+					So(monitor.instance.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
+				})
+				Convey("MarkToBeRemoved should not have been called", func() {
+					So(conn.Requests["SetInstanceTag"], ShouldBeNil)
+				})
 			})
 		})
 	})
