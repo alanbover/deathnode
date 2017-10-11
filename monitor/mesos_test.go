@@ -21,51 +21,26 @@ func TestGetMesosFrameworks(t *testing.T) {
 	})
 }
 
-func TestHasProtectedFrameworksTasks(t *testing.T) {
-
-	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("frameworkName1", "")
-		monitor.Refresh()
-
-		Convey("HasProtectedFrameworksTasks returns", func() {
-			Convey("true if a node have tasks running from protected frameworks", func() {
-				So(monitor.hasProtectedFrameworksTasks("10.0.0.2"), ShouldBeTrue)
-			})
-			Convey("false if a node doesn't have tasks running from protected frameworks", func() {
-				So(monitor.hasProtectedFrameworksTasks("10.0.0.4"), ShouldBeFalse)
-			})
-		})
-	})
-}
-
-func TestHasProtectedLabelTasks(t *testing.T) {
-
-	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("", "DEATHNODE_PROTECTED")
-		monitor.Refresh()
-
-		Convey("HasProtectedLabelTasks returns", func() {
-			Convey("true if a node have tasks running from protected labels", func() {
-				So(monitor.hasProtectedLabelTasks("10.0.0.2"), ShouldBeTrue)
-			})
-			Convey("false if a node doesn't have tasks running from protected labels", func() {
-				So(monitor.hasProtectedLabelTasks("10.0.0.4"), ShouldBeFalse)
-			})
-		})
-	})
-}
-
 func TestIsProtected(t *testing.T) {
 
-	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("", "DEATHNODE_PROTECTED")
-		monitor.Refresh()
-
-		Convey("IsProtected returns", func() {
+	Convey("when calling IsProtected", t, func() {
+		Convey("when checking protected labels", func() {
+			monitor := createTestMesosMonitor("", "DEATHNODE_PROTECTED")
+			monitor.Refresh()
 			Convey("true if a node have tasks running from protected labels", func() {
 				So(monitor.IsProtected("10.0.0.2"), ShouldBeTrue)
 			})
 			Convey("false if a node doesn't have tasks running from protected labels", func() {
+				So(monitor.IsProtected("10.0.0.4"), ShouldBeFalse)
+			})
+		})
+		Convey("when checking protected frameworks", func() {
+			monitor := createTestMesosMonitor("frameworkName1", "")
+			monitor.Refresh()
+			Convey("true if a node have tasks running from protected frameworks", func() {
+				So(monitor.IsProtected("10.0.0.2"), ShouldBeTrue)
+			})
+			Convey("false if a node doesn't have tasks running from protected frameworks", func() {
 				So(monitor.IsProtected("10.0.0.4"), ShouldBeFalse)
 			})
 		})

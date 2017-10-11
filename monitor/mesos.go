@@ -105,42 +105,36 @@ func (m *MesosMonitor) SetMesosAgentsInMaintenance(hosts map[string]string) erro
 	return m.mesosConn.SetHostsInMaintenance(hosts)
 }
 
-func (m *MesosMonitor) hasProtectedFrameworksTasks(ipAddress string) bool {
+func (m *MesosMonitor) isFromProtectedFramework(task mesos.Task) bool {
 
-	slaveID := m.mesosCache.slaves[ipAddress].ID
-	slaveTasks := m.mesosCache.tasks[slaveID]
-	for _, task := range slaveTasks {
-		framework, ok := m.mesosCache.frameworks[task.FrameworkID]
-		if ok {
-			log.Debugf("Framework %s is running on node, preventing Deathnode for killing it", framework.Name)
-			return true
-		}
+	framework, ok := m.mesosCache.frameworks[task.FrameworkID]
+	if ok {
+		log.Debugf("Framework %s is running on node %s, preventing Deathnode for killing it", framework.Name, task.SlaveID)
+		return true
 	}
 
 	return false
 }
 
-func (m *MesosMonitor) hasProtectedLabelTasks(ipAddress string) bool {
+func (m *MesosMonitor) hasProtectedLabel(task mesos.Task) bool {
 
-	slaveID := m.mesosCache.slaves[ipAddress].ID
-	slaveTasks := m.mesosCache.tasks[slaveID]
-	for _, task := range slaveTasks {
-		if task.IsProtected {
-			log.Debugf("Protected task  %s is running on node, preventing Deathnode for killing it", task.Name)
-			return true
-		}
+	if task.IsProtected {
+		log.Debugf("Protected task %s is running on node %s, preventing Deathnode for killing it", task.Name, task.SlaveID)
+		return true
 	}
-
 	return false
 }
 
 // IsProtected returns true if the mesos agent has any protected condition.
 func (m *MesosMonitor) IsProtected(ipAddress string) bool {
-	if hasProtectedTasks := m.hasProtectedLabelTasks(ipAddress); hasProtectedTasks {
-		return hasProtectedTasks
+
+	slaveID := m.mesosCache.slaves[ipAddress].ID
+	slaveTasks := m.mesosCache.tasks[slaveID]
+	for _, task := range slaveTasks {
+		if (m.hasProtectedLabel(task) || m.isFromProtectedFramework(task)) {
+			return true
+		}
 	}
-	if hasProtectedFrameworks := m.hasProtectedFrameworksTasks(ipAddress); hasProtectedFrameworks {
-		return hasProtectedFrameworks
-	}
+
 	return false
 }

@@ -48,7 +48,7 @@ func (y *Watcher) TagInstancesToBeRemoved(autoscalingMonitor *monitor.Autoscalin
 	removedInstances := 0
 
 	for removedInstances < numUndesiredInstances {
-		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstances())
+		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstances(), y.mesosMonitor)
 		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
 		log.Debugf("Mark instance %s for removal", *bestInstanceToKill.GetInstanceID())
 		err := bestInstanceToKill.MarkToBeRemoved()
