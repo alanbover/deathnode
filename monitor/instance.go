@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+// LifecycleStateTerminatingWait defines the state of an instance in the autoscalingGroup when it's waiting for
+// confirmation to be removed
+const LifecycleStateTerminatingWait = "Terminating:Wait"
+
 type instance struct {
 	autoscalingGroupID  string
 	launchConfiguration string
@@ -92,6 +96,11 @@ func (a *InstanceMonitor) MarkToBeRemoved() error {
 
 func (a *InstanceMonitor) setLifecycleState(lifecycleState string) {
 	a.instance.lifecycleState = lifecycleState
+
+	if lifecycleState == LifecycleStateTerminatingWait && a.instance.isProtected {
+		// A non-controled instance went to Terminating:Wait, probably because it went unhealthy
+		a.MarkToBeRemoved()
+	}
 }
 
 func getEpochAsString() string {

@@ -83,12 +83,12 @@ func TestRefresh(t *testing.T) {
 				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-777a73cf")
 				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-666ca923")
 			})
-			Convey("it should have one undesired instance", func() {
-				So(monitor.NumUndesiredInstances(), ShouldEqual, 1)
+			Convey("it should have no undesired instances", func() {
+				So(monitor.NumUndesiredInstances(), ShouldEqual, 0)
 			})
 			Convey("lifecycleState should have been updated", func() {
 				lcState := monitor.autoscaling.instanceMonitors["i-34719eb8"].instance.lifecycleState
-				So(lcState, ShouldEqual, "Terminating:Wait")
+				So(lcState, ShouldEqual, LifecycleStateTerminatingWait)
 			})
 		})
 		Convey("and a new one appears", func() {

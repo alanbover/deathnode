@@ -82,7 +82,7 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 		isProtected := n.mesosMonitor.IsProtected(*instance.PrivateIpAddress)
 
 		if !isProtected {
-			if instanceMonitor.GetLifecycleState() == "Terminating:Wait" {
+			if instanceMonitor.GetLifecycleState() == monitor.LifecycleStateTerminatingWait {
 				log.Infof("Destroy instance %s", *instanceMonitor.GetInstanceID())
 				err := n.awsConnection.CompleteLifecycleAction(instanceMonitor.GetAutoscalingGroupID(), instanceMonitor.GetInstanceID())
 				if err != nil {
