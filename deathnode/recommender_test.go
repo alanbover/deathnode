@@ -3,6 +3,7 @@ package deathnode
 import (
 	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/alanbover/deathnode/monitor"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ func TestRecommender(t *testing.T) {
 
 	Convey("When creating a recommender", t, func() {
 
-		monitor := newTestMonitor(&aws.ConnectionMock{
+		monitor := prepareMonitors(&aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default", "default", "default"},
 				"DescribeAGByName":     {"default"},
@@ -26,4 +27,12 @@ func TestRecommender(t *testing.T) {
 			So(recommender.find(instances), ShouldEqual, instances[0])
 		})
 	})
+}
+
+func prepareMonitors(awsConn *aws.ConnectionMock) *monitor.AutoscalingGroupMonitor {
+
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, []string{"some-Autoscaling-Group"}, "DEATH_NODE_MARK")
+	autoscalingGroups.Refresh()
+
+	return autoscalingGroups.GetAllMonitors()[0]
 }
