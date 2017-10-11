@@ -2,10 +2,10 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
-	"testing"
-	"github.com/alanbover/deathnode/monitor"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/alanbover/deathnode/monitor"
 	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestDestroyInstanceAttempt(t *testing.T) {
@@ -42,7 +42,7 @@ func TestDestroyInstanceAttempt(t *testing.T) {
 		})
 		Convey("if there is a instance marked to be removed", func() {
 			awsConn.Records = map[string]*[]string{
-				"DescribeInstancesByTag":       {"one_undesired_host", "one_undesired_host"},
+				"DescribeInstancesByTag": {"one_undesired_host", "one_undesired_host"},
 			}
 			instanceMonitor, _ := notebook.autoscalingGroups.GetInstanceByID("i-34719eb8")
 			Convey("Check remove instance protection flags", func() {
@@ -128,8 +128,9 @@ func TestDestroyInstanceAttempt(t *testing.T) {
 func newNotebook(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) *Notebook {
 
 	protectedFrameworks := []string{"frameworkName1"}
+	protectedTasksLabels := []string{"task1"}
 	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks)
+	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
 	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
 
 	mesosMonitor.Refresh()

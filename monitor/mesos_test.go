@@ -1,17 +1,17 @@
 package monitor
 
 import (
-	"testing"
-	. "github.com/smartystreets/goconvey/convey"
-	"github.com/alanbover/deathnode/mesos"
 	"encoding/json"
 	"fmt"
+	"github.com/alanbover/deathnode/mesos"
+	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestGetMesosFrameworks(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("frameworkName1")
+		monitor := createTestMesosMonitor("frameworkName1", "")
 
 		Convey("getProtectedFrameworks should return only the ones that match the protected frameworks", func() {
 			frameworks := monitor.getProtectedFrameworks()
@@ -24,15 +24,49 @@ func TestGetMesosFrameworks(t *testing.T) {
 func TestHasProtectedFrameworksTasks(t *testing.T) {
 
 	Convey("When creating a new mesos monitor", t, func() {
-		monitor := createTestMesosMonitor("frameworkName1")
+		monitor := createTestMesosMonitor("frameworkName1", "")
 		monitor.Refresh()
 
 		Convey("HasProtectedFrameworksTasks returns", func() {
 			Convey("true if a node have tasks running from protected frameworks", func() {
-				So(monitor.HasProtectedFrameworksTasks("10.0.0.2"), ShouldBeTrue)
+				So(monitor.hasProtectedFrameworksTasks("10.0.0.2"), ShouldBeTrue)
 			})
 			Convey("false if a node doesn't have tasks running from protected frameworks", func() {
-				So(monitor.HasProtectedFrameworksTasks("10.0.0.4"), ShouldBeFalse)
+				So(monitor.hasProtectedFrameworksTasks("10.0.0.4"), ShouldBeFalse)
+			})
+		})
+	})
+}
+
+func TestHasProtectedLabelTasks(t *testing.T) {
+
+	Convey("When creating a new mesos monitor", t, func() {
+		monitor := createTestMesosMonitor("", "DEATHNODE_PROTECTED")
+		monitor.Refresh()
+
+		Convey("HasProtectedLabelTasks returns", func() {
+			Convey("true if a node have tasks running from protected labels", func() {
+				So(monitor.hasProtectedLabelTasks("10.0.0.2"), ShouldBeTrue)
+			})
+			Convey("false if a node doesn't have tasks running from protected labels", func() {
+				So(monitor.hasProtectedLabelTasks("10.0.0.4"), ShouldBeFalse)
+			})
+		})
+	})
+}
+
+func TestIsProtected(t *testing.T) {
+
+	Convey("When creating a new mesos monitor", t, func() {
+		monitor := createTestMesosMonitor("", "DEATHNODE_PROTECTED")
+		monitor.Refresh()
+
+		Convey("IsProtected returns", func() {
+			Convey("true if a node have tasks running from protected labels", func() {
+				So(monitor.IsProtected("10.0.0.2"), ShouldBeTrue)
+			})
+			Convey("false if a node doesn't have tasks running from protected labels", func() {
+				So(monitor.IsProtected("10.0.0.4"), ShouldBeFalse)
 			})
 		})
 	})
@@ -45,8 +79,8 @@ func TestSetMesosAgentsInMaintenance(t *testing.T) {
 		}
 		templateJSON := mesos.MaintenanceRequest{}
 		var testValues = []struct {
-			hosts  map[string]string
-			num int
+			hosts map[string]string
+			num   int
 		}{
 			{map[string]string{}, 0},
 			{map[string]string{"hostname1": "10.0.0.1"}, 1},
@@ -63,7 +97,7 @@ func TestSetMesosAgentsInMaintenance(t *testing.T) {
 	})
 }
 
-func createTestMesosMonitor(protectedFramework string) *MesosMonitor {
+func createTestMesosMonitor(protectedFramework string, protectedTasksLabels string) *MesosMonitor {
 	mesosConn := &mesos.ClientMock{
 		Records: map[string]*[]string{
 			"GetMesosFrameworks": {"default"},
@@ -71,5 +105,5 @@ func createTestMesosMonitor(protectedFramework string) *MesosMonitor {
 			"GetMesosTasks":      {"default"},
 		},
 	}
-	return NewMesosMonitor(mesosConn, []string{protectedFramework})
+	return NewMesosMonitor(mesosConn, []string{protectedFramework}, []string{protectedTasksLabels})
 }

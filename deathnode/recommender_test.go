@@ -1,9 +1,9 @@
 package deathnode
 
 import (
-	"testing"
 	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestRecommender(t *testing.T) {

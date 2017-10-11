@@ -1,10 +1,10 @@
 package monitor
 
 import (
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/alanbover/deathnode/aws"
-	log "github.com/sirupsen/logrus"
 	"fmt"
+	"github.com/alanbover/deathnode/aws"
+	"github.com/aws/aws-sdk-go/service/autoscaling"
+	log "github.com/sirupsen/logrus"
 )
 
 // AutoscalingGroupsMonitor holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor

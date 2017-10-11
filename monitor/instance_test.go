@@ -1,9 +1,9 @@
 package monitor
 
 import (
-	"testing"
 	"github.com/alanbover/deathnode/aws"
 	. "github.com/smartystreets/goconvey/convey"
+	"testing"
 )
 
 func TestNewInstanceMonitor(t *testing.T) {
