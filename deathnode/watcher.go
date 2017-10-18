@@ -3,6 +3,7 @@ package deathnode
 // Given an autoscaling group, decides which is/are the best agent/s to kill
 
 import (
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 )
@@ -17,14 +18,15 @@ type Watcher struct {
 }
 
 // NewWatcher returns a new Watcher object
-func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupMonitorCollection, constraintType, recommenderType string) *Watcher {
+func NewWatcher(ctx *context.ApplicationContext, notebook *Notebook, mesosMonitor *monitor.MesosMonitor,
+	autoscalingGroups *monitor.AutoscalingGroupMonitorCollection) *Watcher {
 
-	contrainsts, err := newConstraint(constraintType)
+	contrainsts, err := newConstraint(ctx.Conf.ConstraintsType)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	recommender, err := newRecommender(recommenderType)
+	recommender, err := newRecommender(ctx.Conf.RecommenderType)
 	if err != nil {
 		log.Fatal(err)
 	}

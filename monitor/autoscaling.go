@@ -2,23 +2,21 @@ package monitor
 
 import (
 	"fmt"
-	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	log "github.com/sirupsen/logrus"
 )
 
 // AutoscalingGroupMonitorCollection holds a map of [ASGprefix][ASGname]AutoscalingGroupMonitor
 type AutoscalingGroupMonitorCollection struct {
-	monitors      map[string]map[string]*AutoscalingGroupMonitor
-	awsConnection aws.ClientInterface
-	deathNodeMark string
+	monitors map[string]map[string]*AutoscalingGroupMonitor
+	context  *context.ApplicationContext
 }
 
 // AutoscalingGroupMonitor monitors an AWS autoscaling group, caching it's data
 type AutoscalingGroupMonitor struct {
-	autoscaling   *autoscalingGroup
-	awsConnection aws.ClientInterface
-	deathNodeMark string
+	autoscaling *autoscalingGroup
+	context     *context.ApplicationContext
 }
 
 type autoscalingGroup struct {
@@ -30,24 +28,23 @@ type autoscalingGroup struct {
 var lifeCycleTimeout int64 = 3600
 
 // NewAutoscalingGroupMonitors returns an AutoscalingGroups object
-func NewAutoscalingGroupMonitors(awsConnection aws.ClientInterface, autoscalingGroupNameList []string, deathNodeMark string) (*AutoscalingGroupMonitorCollection, error) {
+func NewAutoscalingGroupMonitors(ctx *context.ApplicationContext) (*AutoscalingGroupMonitorCollection, error) {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
-	for _, autoscalingGroupName := range autoscalingGroupNameList {
+	for _, autoscalingGroupName := range ctx.Conf.AutoscalingGroupPrefixes {
 		monitors[autoscalingGroupName] = map[string]*AutoscalingGroupMonitor{}
 	}
 
 	autoscalingGroups := &AutoscalingGroupMonitorCollection{
-		monitors:      monitors,
-		awsConnection: awsConnection,
-		deathNodeMark: deathNodeMark,
+		monitors: monitors,
+		context:  ctx,
 	}
 
 	return autoscalingGroups, nil
 }
 
 // NewAutoscalingGroupMonitor returns a "empty" AutoscalingGroupMonitor object
-func newAutoscalingGroupMonitor(awsConnection aws.ClientInterface, autoscalingGroupName, deathNodeMark string) (*AutoscalingGroupMonitor, error) {
+func newAutoscalingGroupMonitor(context *context.ApplicationContext, autoscalingGroupName string) (*AutoscalingGroupMonitor, error) {
 
 	return &AutoscalingGroupMonitor{
 		autoscaling: &autoscalingGroup{
@@ -55,8 +52,7 @@ func newAutoscalingGroupMonitor(awsConnection aws.ClientInterface, autoscalingGr
 			desiredCapacity:      0,
 			instanceMonitors:     map[string]*InstanceMonitor{},
 		},
-		awsConnection: awsConnection,
-		deathNodeMark: deathNodeMark,
+		context: context,
 	}, nil
 }
 
@@ -104,7 +100,7 @@ func (a *AutoscalingGroupMonitorCollection) Refresh() error {
 
 	for autoscalingGroupPrefix := range a.monitors {
 
-		response, err := a.awsConnection.DescribeAGByName(autoscalingGroupPrefix)
+		response, err := a.context.AwsConn.DescribeAGByName(autoscalingGroupPrefix)
 		if err != nil {
 			return err
 		}
@@ -134,12 +130,12 @@ func (a *AutoscalingGroupMonitorCollection) Refresh() error {
 func (a *AutoscalingGroupMonitorCollection) newAutoscalingGroup(autoscalingGroupPrefix string, autoscalingGroupResponse *autoscaling.Group) {
 
 	log.Infof("Found new autoscalingGroup to monitor: %s", *autoscalingGroupResponse.AutoScalingGroupName)
-	autoscalingGroupMonitor, _ := newAutoscalingGroupMonitor(a.awsConnection, *autoscalingGroupResponse.AutoScalingGroupName, a.deathNodeMark)
+	autoscalingGroupMonitor, _ := newAutoscalingGroupMonitor(a.context, *autoscalingGroupResponse.AutoScalingGroupName)
 
-	ok, _ := a.awsConnection.HasLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName)
+	ok, _ := a.context.AwsConn.HasLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName)
 	if !ok {
 		log.Infof("Setting lifecyclehook for autoscaling %s", *autoscalingGroupResponse.AutoScalingGroupName)
-		err := a.awsConnection.PutLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName, &lifeCycleTimeout)
+		err := a.context.AwsConn.PutLifeCycleHook(autoscalingGroupResponse.AutoScalingGroupName, &lifeCycleTimeout)
 		if err != nil {
 			log.Warnf("Error putting lifecyclehook to autoscaling %s: %s", *autoscalingGroupResponse.AutoScalingGroupName, err)
 		}
@@ -206,7 +202,7 @@ func (a *AutoscalingGroupMonitor) setInstanceProtection(autoscalingGroup *autosc
 		instancesToProtect = append(instancesToProtect, instance.InstanceId)
 	}
 
-	err := a.awsConnection.SetASGInstanceProtection(autoscalingGroup.AutoScalingGroupName, instancesToProtect)
+	err := a.context.AwsConn.SetASGInstanceProtection(autoscalingGroup.AutoScalingGroupName, instancesToProtect)
 	if err != nil {
 		return err
 	}
@@ -229,7 +225,7 @@ func (a *AutoscalingGroupMonitor) newInstance(autoscalingGroup *autoscaling.Grou
 
 	log.Debugf("Found new instance to monitor in autoscaling %s: %s", a.autoscaling.autoscalingGroupName, *instance.InstanceId)
 	instanceMonitor, err := newInstanceMonitor(
-		a.awsConnection, a.autoscaling.autoscalingGroupName, *instance.InstanceId, a.deathNodeMark, *instance.LifecycleState, true,
+		a.context.AwsConn, a.autoscaling.autoscalingGroupName, *instance.InstanceId, a.context.Conf.DeathNodeMark, *instance.LifecycleState, true,
 	)
 	if err != nil {
 		return err

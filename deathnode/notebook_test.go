@@ -2,6 +2,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	"github.com/alanbover/deathnode/monitor"
 	. "github.com/smartystreets/goconvey/convey"
@@ -127,15 +128,24 @@ func TestDestroyInstanceAttempt(t *testing.T) {
 
 func newNotebook(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) *Notebook {
 
-	protectedFrameworks := []string{"frameworkName1"}
-	protectedTasksLabels := []string{"task1"}
-	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
+	ctx := &context.ApplicationContext{
+		AwsConn:   awsConn,
+		MesosConn: mesosConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+			ProtectedFrameworks:      []string{"frameworkName1"},
+			ProtectedTasksLabels:     []string{"task1"},
+			DelayDeleteSeconds:       delayDeleteSeconds,
+		},
+	}
+
+	mesosMonitor := monitor.NewMesosMonitor(ctx)
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
 
 	mesosMonitor.Refresh()
 	autoscalingGroups.Refresh()
 
-	notebook := NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, "DEATH_NODE_MARK")
+	notebook := NewNotebook(ctx, autoscalingGroups, mesosMonitor)
 	return notebook
 }

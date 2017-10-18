@@ -4,6 +4,7 @@ package monitor
 // With MesosCache we reduce the number of calls to mesos, also we map it for quicker access
 
 import (
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	log "github.com/sirupsen/logrus"
 	"strings"
@@ -28,17 +29,17 @@ type mesosCache struct {
 }
 
 // NewMesosMonitor returns a new mesos.monitor object
-func NewMesosMonitor(mesosConn mesos.ClientInterface, protectedFrameworks []string, protectedTasksLabels []string) *MesosMonitor {
+func NewMesosMonitor(ctx *context.ApplicationContext) *MesosMonitor {
 
 	return &MesosMonitor{
-		mesosConn: mesosConn,
+		mesosConn: ctx.MesosConn,
 		mesosCache: &mesosCache{
 			tasks:      map[string][]mesos.Task{},
 			frameworks: map[string]mesos.Framework{},
 			slaves:     map[string]mesos.Slave{},
 		},
-		protectedFrameworks:  protectedFrameworks,
-		protectedTasksLabels: protectedTasksLabels,
+		protectedFrameworks:  ctx.Conf.ProtectedFrameworks,
+		protectedTasksLabels: ctx.Conf.ProtectedTasksLabels,
 	}
 }
 
@@ -131,7 +132,7 @@ func (m *MesosMonitor) IsProtected(ipAddress string) bool {
 	slaveID := m.mesosCache.slaves[ipAddress].ID
 	slaveTasks := m.mesosCache.tasks[slaveID]
 	for _, task := range slaveTasks {
-		if (m.hasProtectedLabel(task) || m.isFromProtectedFramework(task)) {
+		if m.hasProtectedLabel(task) || m.isFromProtectedFramework(task) {
 			return true
 		}
 	}

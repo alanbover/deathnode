@@ -2,8 +2,9 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
-	. "github.com/smartystreets/goconvey/convey"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/monitor"
+	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
 
@@ -31,7 +32,15 @@ func TestRecommender(t *testing.T) {
 
 func prepareMonitors(awsConn *aws.ConnectionMock) *monitor.AutoscalingGroupMonitor {
 
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, []string{"some-Autoscaling-Group"}, "DEATH_NODE_MARK")
+	ctx := &context.ApplicationContext{
+		AwsConn: awsConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+		},
+	}
+
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
 	autoscalingGroups.Refresh()
 
 	return autoscalingGroups.GetAutoscalingGroupMonitors()[0]

@@ -26,4 +26,5 @@ lint:
 	golint aws/
 	golint deathnode/
 	golint monitor/
+	golint context/
 

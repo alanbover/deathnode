@@ -2,6 +2,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
@@ -250,16 +251,23 @@ func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
 
 func newWatcher(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) *Watcher {
 
-	protectedFrameworks := []string{"frameworkName1"}
-	protectedTasksLabels := []string{"DEATHNODE_PROTECTED"}
-	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
+	ctx := &context.ApplicationContext{
+		AwsConn:   awsConn,
+		MesosConn: mesosConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+			ProtectedFrameworks:      []string{"frameworkName1"},
+			ProtectedTasksLabels:     []string{"DEATHNODE_PROTECTED"},
+			DelayDeleteSeconds:       delayDeleteSeconds,
+			ConstraintsType:          "noContraint",
+			RecommenderType:          "smallestInstanceId",
+		},
+	}
 
-	constraintsType := "noContraint"
-	recommenderType := "smallestInstanceId"
-
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
-	notebook := NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, "DEATH_NODE_MARK")
-	deathNodeWatcher := NewWatcher(notebook, mesosMonitor, autoscalingGroups, constraintsType, recommenderType)
+	mesosMonitor := monitor.NewMesosMonitor(ctx)
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
+	notebook := NewNotebook(ctx, autoscalingGroups, mesosMonitor)
+	deathNodeWatcher := NewWatcher(ctx, notebook, mesosMonitor, autoscalingGroups)
 	return deathNodeWatcher
 }

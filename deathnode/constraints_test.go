@@ -2,6 +2,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	"github.com/alanbover/deathnode/monitor"
 	. "github.com/smartystreets/goconvey/convey"
@@ -46,9 +47,9 @@ func TestProtectedConstraint(t *testing.T) {
 		}
 		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{
-				"GetMesosFrameworks": { "default" },
-				"GetMesosSlaves":     { "default" },
-				"GetMesosTasks":      { "default" },
+				"GetMesosFrameworks": {"default"},
+				"GetMesosSlaves":     {"default"},
+				"GetMesosTasks":      {"default"},
 			},
 		}
 		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn)
@@ -64,9 +65,19 @@ func TestProtectedConstraint(t *testing.T) {
 
 func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos.ClientMock) (*monitor.AutoscalingGroupMonitor, *monitor.MesosMonitor) {
 
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, []string{"some-Autoscaling-Group"}, "DEATH_NODE_MARK")
+	ctx := &context.ApplicationContext{
+		AwsConn:   awsConn,
+		MesosConn: mesosConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+			ProtectedFrameworks:      []string{"frameworkName1"},
+		},
+	}
+
+	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
 	autoscalingGroups.Refresh()
 
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, []string{"frameworkName1"}, []string{"DEATHNODE_PROTECTED"})
+	mesosMonitor := monitor.NewMesosMonitor(ctx)
 	return autoscalingGroups.GetAutoscalingGroupMonitors()[0], mesosMonitor
 }
