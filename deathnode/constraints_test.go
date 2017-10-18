@@ -2,6 +2,7 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	"github.com/alanbover/deathnode/monitor"
 	. "github.com/smartystreets/goconvey/convey"
@@ -46,16 +47,16 @@ func TestProtectedConstraint(t *testing.T) {
 		}
 		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{
-				"GetMesosFrameworks": { "default" },
-				"GetMesosSlaves":     { "default" },
-				"GetMesosTasks":      { "default" },
+				"GetMesosFrameworks": {"default"},
+				"GetMesosSlaves":     {"default"},
+				"GetMesosTasks":      {"default"},
 			},
 		}
 		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn)
 		mesosMonitor.Refresh()
 
 		constraint, _ := newConstraint("protectedConstraint")
-		Convey("it should filter instances with protectedLabels out protectedFrameworks", func() {
+		Convey("it should filter instances with protectedLabels or protectedFrameworks", func() {
 			instances := constraint.filter(instanceMonitor.GetInstances(), mesosMonitor)
 			So(len(instances), ShouldEqual, 1)
 		})
@@ -64,9 +65,17 @@ func TestProtectedConstraint(t *testing.T) {
 
 func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos.ClientMock) (*monitor.AutoscalingGroupMonitor, *monitor.MesosMonitor) {
 
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, []string{"some-Autoscaling-Group"}, "DEATH_NODE_MARK")
-	autoscalingGroups.Refresh()
+	ctx := &context.ApplicationContext{
+		AwsConn:   awsConn,
+		MesosConn: mesosConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+			ProtectedFrameworks:      []string{"frameworkName1"},
+		},
+	}
 
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, []string{"frameworkName1"}, []string{"DEATHNODE_PROTECTED"})
-	return autoscalingGroups.GetAllMonitors()[0], mesosMonitor
+	autoscalingGroups := monitor.NewAutoscalingServiceMonitor(ctx)
+	autoscalingGroups.Refresh()
+	return autoscalingGroups.GetAutoscalingGroupMonitorsList()[0], monitor.NewMesosMonitor(ctx)
 }

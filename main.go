@@ -5,23 +5,22 @@ import "flag"
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/deathnode"
 	"github.com/alanbover/deathnode/mesos"
-	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 )
 
-type arrayFlags []string
-
-var accessKey, secretKey, region, iamRole, iamSession, mesosURL, constraintsType, recommenderType, deathNodeMark string
-var autoscalingGroupPrefixes, protectedFrameworks, protectedTasksLabels arrayFlags
-var pollingSeconds, delayDeleteSeconds int
+var accessKey, secretKey, region, iamRole, iamSession, mesosURL string
 var debug bool
+var pollingSeconds int
 
 func main() {
 
-	initFlags()
-	enforceFlags()
+	ctx := &context.ApplicationContext{}
+
+	initFlags(ctx)
+	enforceFlags(ctx)
 
 	log.SetLevel(log.InfoLevel)
 	if debug {
@@ -29,21 +28,19 @@ func main() {
 	}
 
 	// Create the monitors for autoscaling groups
-	awsConn, err := aws.NewClient(accessKey, secretKey, region, iamRole, iamSession)
-	if err != nil {
+	if awsConn, err := aws.NewClient(accessKey, secretKey, region, iamRole, iamSession); err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
+	} else {
+		ctx.AwsConn = awsConn
 	}
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupPrefixes, deathNodeMark)
 
 	// Create the Mesos monitor
-	mesosConn := &mesos.Client{
+	ctx.MesosConn = &mesos.Client{
 		MasterURL: mesosURL,
 	}
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, deathNodeMark)
-	deathNodeWatcher := deathnode.NewWatcher(notebook, mesosMonitor, autoscalingGroups, constraintsType, recommenderType)
+	deathNodeWatcher := deathnode.NewWatcher(ctx)
 
 	ticker := time.NewTicker(time.Second * time.Duration(pollingSeconds))
 	for {
@@ -52,7 +49,7 @@ func main() {
 	}
 }
 
-func initFlags() {
+func initFlags(context *context.ApplicationContext) {
 
 	flag.StringVar(&accessKey, "accessKey", "", "AWS_ACCESS_KEY_ID.")
 	flag.StringVar(&secretKey, "secretKey", "", "AWS_SECRET_ACCESS_KEY.")
@@ -63,44 +60,37 @@ func initFlags() {
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging.")
 	flag.StringVar(&mesosURL, "mesosUrl", "", "The URL for Mesos master.")
 
-	flag.Var(&autoscalingGroupPrefixes, "autoscalingGroupName", "An autoscalingGroup prefix for monitor.")
-	flag.Var(&protectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node.")
-	flag.Var(&protectedTasksLabels, "protectedTaskLabels", "The labels used for protected tasks.")
-	// Move constraints to array, so we apply multiple
-	flag.StringVar(&constraintsType, "constraintsType", "noContraint", "The constrainst implementation to use.")
-	flag.StringVar(&recommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use.")
+	flag.Var(&context.Conf.AutoscalingGroupPrefixes, "autoscalingGroupName", "An autoscalingGroup prefix for monitor.")
+	flag.Var(&context.Conf.ProtectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node.")
+	flag.Var(&context.Conf.ProtectedTasksLabels, "protectedTaskLabels", "The labels used for protected tasks.")
 
-	flag.StringVar(&deathNodeMark, "deathNodeMark", "DEATH_NODE_MARK", "The tag to apply for instances to be deleted.")
+	flag.StringVar(
+		&context.Conf.ConstraintsType, "constraintsType", "noContraint", "The constrainst implementation to use.")
+	flag.StringVar(
+		&context.Conf.RecommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use.")
+	flag.StringVar(
+		&context.Conf.DeathNodeMark, "deathNodeMark", "DEATH_NODE_MARK", "The tag to apply for instances to be deleted.")
 
 	flag.IntVar(&pollingSeconds, "polling", 60, "Seconds between executions.")
-	flag.IntVar(&delayDeleteSeconds, "delayDelete", 0, "Time to wait between kill executions (in seconds).")
+	flag.IntVar(&context.Conf.DelayDeleteSeconds, "delayDelete", 0, "Time to wait between kill executions (in seconds).")
 
 	flag.Parse()
 }
 
-func enforceFlags() {
+func enforceFlags(context *context.ApplicationContext) {
 
 	if mesosURL == "" {
 		flag.Usage()
 		log.Fatal("mesosUrl flag is required")
 	}
 
-	if len(autoscalingGroupPrefixes) < 1 {
+	if len(context.Conf.AutoscalingGroupPrefixes) < 1 {
 		flag.Usage()
 		log.Fatal("at least one autoscalingGroupName flag is required")
 	}
 
-	if len(protectedFrameworks) < 1 {
+	if len(context.Conf.ProtectedFrameworks) < 1 {
 		flag.Usage()
 		log.Fatal("at least one registeredFramework flag is required")
 	}
-}
-
-func (i *arrayFlags) String() string {
-	return ""
-}
-
-func (i *arrayFlags) Set(value string) error {
-	*i = append(*i, value)
-	return nil
 }

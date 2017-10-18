@@ -3,6 +3,7 @@ package monitor
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
@@ -73,12 +74,20 @@ func TestSetMesosAgentsInMaintenance(t *testing.T) {
 }
 
 func createTestMesosMonitor(protectedFramework string, protectedTasksLabels string) *MesosMonitor {
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default"},
-			"GetMesosSlaves":     {"default"},
-			"GetMesosTasks":      {"default"},
+
+	ctx := &context.ApplicationContext{
+		MesosConn: &mesos.ClientMock{
+			Records: map[string]*[]string{
+				"GetMesosFrameworks": {"default"},
+				"GetMesosSlaves":     {"default"},
+				"GetMesosTasks":      {"default"},
+			},
+		},
+		Conf: context.ApplicationConf{
+			ProtectedFrameworks:  []string{protectedFramework},
+			ProtectedTasksLabels: []string{protectedTasksLabels},
 		},
 	}
-	return NewMesosMonitor(mesosConn, []string{protectedFramework}, []string{protectedTasksLabels})
+
+	return NewMesosMonitor(ctx)
 }

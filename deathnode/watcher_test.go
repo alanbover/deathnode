@@ -2,264 +2,244 @@ package deathnode
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
-	"github.com/alanbover/deathnode/monitor"
-	log "github.com/sirupsen/logrus"
 	"testing"
-	"time"
+	"fmt"
 )
 
-func TestOneInstanceRemovalWithoutDestroy(t *testing.T) {
+type testCollectionValues struct {
+	awsConn *aws.ConnectionMock
+	mesosConn *mesos.ClientMock
+	delayDeleteSeconds int
+	times int
+}
 
-	log.SetLevel(log.DebugLevel)
+type expectedResult struct {
+	values testCollectionValues
+	numInstancesRemoved int
+	numMarkToBeRemoved int
+	numRemovedInstancesProtection int
+}
 
-	awsConn := &aws.ConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": {
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
+func TestWatcher(t *testing.T) {
+
+	expectedResults := []expectedResult{
+		{
+			values: testCollectionValues{
+				awsConn: &aws.ConnectionMock{
+					Records: map[string]*[]string{
+						"DescribeInstanceById": {
+							"node1", "node2", "node3",
+							"node1", "node2", "node3",
+						},
+						"DescribeInstancesByTag": {"default", "default"},
+						"DescribeAGByName":       {"default", "default"},
+					},
+				},
+				mesosConn: &mesos.ClientMock{
+					Records: map[string]*[]string{
+						"GetMesosFrameworks": {"default", "default"},
+						"GetMesosSlaves":     {"default", "default"},
+						"GetMesosTasks":      {"default", "default"},
+					},
+
+				},
+				delayDeleteSeconds: 0,
+				times: 2,
 			},
-			"DescribeInstancesByTag": {"default", "one_undesired_host"},
-			"DescribeAGByName":       {"default", "one_undesired_host"},
+			numInstancesRemoved: 0,
+			numMarkToBeRemoved: 0,
+			numRemovedInstancesProtection: 0,
+		},
+		{
+			values: testCollectionValues{
+				awsConn: &aws.ConnectionMock{
+					Records: map[string]*[]string{
+						"DescribeInstanceById": {
+							"node1", "node2", "node3",
+							"node1", "node2", "node3",
+						},
+						"DescribeInstancesByTag": {"default", "one_undesired_host"},
+						"DescribeAGByName":       {"default", "one_undesired_host"},
+					},
+				},
+				mesosConn: &mesos.ClientMock{
+					Records: map[string]*[]string{
+						"GetMesosFrameworks": {"default", "default"},
+						"GetMesosSlaves":     {"default", "default"},
+						"GetMesosTasks":      {"notasks", "notasks"},
+					},
+
+				},
+				delayDeleteSeconds: 0,
+				times: 2,
+			},
+			numInstancesRemoved: 0,
+			numMarkToBeRemoved: 1,
+			numRemovedInstancesProtection: 1,
+		},
+		{
+			values: testCollectionValues{
+				awsConn: &aws.ConnectionMock{
+					Records: map[string]*[]string{
+						"DescribeInstanceById": {
+							"node1", "node2", "node3",
+							"node1", "node2", "node3",
+						},
+						"DescribeInstancesByTag": {"default", "two_undesired_hosts"},
+						"DescribeAGByName":       {"default", "two_undesired_hosts"},
+					},
+				},
+				mesosConn: &mesos.ClientMock{
+					Records: map[string]*[]string{
+						"GetMesosFrameworks": {"default", "default"},
+						"GetMesosSlaves":     {"default", "default"},
+						"GetMesosTasks":      {"notasks", "notasks"},
+					},
+
+				},
+				delayDeleteSeconds: 0,
+				times: 2,
+			},
+			numInstancesRemoved: 0,
+			numMarkToBeRemoved: 2,
+			numRemovedInstancesProtection: 2,
+		},
+		{
+			values: testCollectionValues{
+				awsConn: &aws.ConnectionMock{
+					Records: map[string]*[]string{
+						"DescribeInstanceById": {
+							"node1", "node2", "node3",
+							"node1", "node2", "node3",
+						},
+						"DescribeInstancesByTag": {"default", "two_undesired_hosts",
+							"two_undesired_hosts"},
+						"DescribeAGByName":       {"default", "two_undesired_hosts",
+							"two_undesired_hosts_two_terminating"},
+					},
+				},
+				mesosConn: &mesos.ClientMock{
+					Records: map[string]*[]string{
+						"GetMesosFrameworks": {"default", "default", "default"},
+						"GetMesosSlaves":     {"default", "default", "default"},
+						"GetMesosTasks":      {"notasks", "notasks", "notasks"},
+					},
+
+				},
+				delayDeleteSeconds: 0,
+				times: 3,
+			},
+			numInstancesRemoved: 2,
+			numMarkToBeRemoved: 2,
+			numRemovedInstancesProtection: 2,
+		},
+		{
+			values: testCollectionValues{
+				awsConn: &aws.ConnectionMock{
+					Records: map[string]*[]string{
+						"DescribeInstanceById": {
+							"node1", "node2", "node3",
+							"node1", "node2", "node3",
+						},
+						"DescribeInstancesByTag": { "default", "two_undesired_hosts",
+							"two_undesired_hosts"},
+						"DescribeAGByName":       {
+							"default", "two_undesired_hosts",
+							"two_undesired_hosts_two_terminating"},
+					},
+				},
+				mesosConn: &mesos.ClientMock{
+					Records: map[string]*[]string{
+						"GetMesosFrameworks": {"default", "default", "default"},
+						"GetMesosSlaves":     {"default", "default", "default"},
+						"GetMesosTasks":      {"notasks", "notasks", "notasks"},
+					},
+
+				},
+				delayDeleteSeconds: 1,
+				times: 3,
+			},
+			numInstancesRemoved: 1,
+			numMarkToBeRemoved: 2,
+			numRemovedInstancesProtection: 2,
 		},
 	}
 
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default", "default"},
-			"GetMesosSlaves":     {"default", "default"},
-			"GetMesosTasks":      {"default", "default"},
-		},
-	}
+	for i, result := range expectedResults {
+		t.Run(fmt.Sprintf("TestWatcher resultValue %s", i), func(t *testing.T) {
+			runWatcher(result.values)
+			requests := result.values.awsConn.Requests
 
-	deathNodeWatcher := newWatcher(awsConn, mesosConn, 0)
+			// Check number of instance protection removals
+			if result.numRemovedInstancesProtection > 0 && requests["RemoveASGInstanceProtection"] == nil {
+				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: nil",
+					result.numRemovedInstancesProtection)
+			}
+			if result.numRemovedInstancesProtection == 0 && requests["RemoveASGInstanceProtection"] != nil {
+				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["RemoveASGInstanceProtection"]))
+			}
+			if result.numRemovedInstancesProtection != len(requests["RemoveASGInstanceProtection"]) {
+				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["RemoveASGInstanceProtection"]))
+			}
 
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-
-	removeInstanceProtectionCall := awsConn.Requests["RemoveASGInstanceProtection"]
-	if removeInstanceProtectionCall == nil {
-		t.Fatal("Should remove instance protection. Found nil")
-	}
-	if len(removeInstanceProtectionCall) != 1 {
-		t.Fatal("One instance should have been removed from ASG. Found incorrect number")
-	}
-
-	completeLifecycleHookCall := awsConn.Requests["CompleteLifecycleAction"]
-	if completeLifecycleHookCall != nil {
-		t.Fatal("No instance destroy should have been called")
+			// Check number of instances marked to be removed
+			if result.numMarkToBeRemoved > 0 && requests["SetInstanceTag"] == nil {
+				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: nil",
+					result.numRemovedInstancesProtection)
+			}
+			if result.numMarkToBeRemoved == 0 && requests["SetInstanceTag"] != nil {
+				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["SetInstanceTag"]))
+			}
+			if result.numMarkToBeRemoved != len(requests["SetInstanceTag"]) {
+				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["SetInstanceTag"]))
+			}
+			// Check number of instances removed
+			if result.numInstancesRemoved > 0 && requests["CompleteLifecycleAction"] == nil {
+				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: nil",
+					result.numRemovedInstancesProtection)
+			}
+			if result.numInstancesRemoved == 0 && requests["CompleteLifecycleAction"] != nil {
+				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["CompleteLifecycleAction"]))
+			}
+			if result.numInstancesRemoved != len(requests["CompleteLifecycleAction"]) {
+				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %s",
+					result.numRemovedInstancesProtection, len(requests["CompleteLifecycleAction"]))
+			}
+		})
 	}
 }
 
-func TestTwoInstanceRemovalWithoutDestroy(t *testing.T) {
+func newWatcher(testValues testCollectionValues) *Watcher {
 
-	log.SetLevel(log.DebugLevel)
-
-	awsConn := &aws.ConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": {
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-			},
-			"DescribeInstancesByTag": {"default", "two_undesired_hosts"},
-			"DescribeAGByName":       {"default", "two_undesired_hosts"},
+	ctx := &context.ApplicationContext{
+		AwsConn:   testValues.awsConn,
+		MesosConn: testValues.mesosConn,
+		Conf: context.ApplicationConf{
+			DeathNodeMark:            "DEATH_NODE_MARK",
+			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
+			ProtectedFrameworks:      []string{"frameworkName1"},
+			ProtectedTasksLabels:     []string{"DEATHNODE_PROTECTED"},
+			DelayDeleteSeconds:       testValues.delayDeleteSeconds,
+			ConstraintsType:          "noContraint",
+			RecommenderType:          "smallestInstanceId",
 		},
 	}
 
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default", "default"},
-			"GetMesosSlaves":     {"default", "default"},
-			"GetMesosTasks":      {"default", "default"},
-		},
-	}
-
-	deathNodeWatcher := newWatcher(awsConn, mesosConn, 0)
-
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-
-	removeInstanceProtectionCall := awsConn.Requests["RemoveASGInstanceProtection"]
-	if removeInstanceProtectionCall == nil {
-		t.Fatal("Two instances should have been removed from ASG. Found nil")
-	}
-	if len(removeInstanceProtectionCall) != 2 {
-		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(removeInstanceProtectionCall))
-	}
-	if removeInstanceProtectionCall[0][1] == removeInstanceProtectionCall[1][1] {
-		t.Fatal("Two instance deatch has been called, but all for the same host")
-	}
-
-	destroyInstanceCall := awsConn.Requests["CompleteLifecycleAction"]
-	if destroyInstanceCall != nil {
-		t.Fatal("No instance destroy should have been called")
-	}
-}
-
-func TestTwoInstanceRemovalWithDestroy(t *testing.T) {
-
-	log.SetLevel(log.DebugLevel)
-
-	awsConn := &aws.ConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": {
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-			},
-			"DescribeInstancesByTag": {"default", "two_undesired_hosts", "two_undesired_hosts", "two_undesired_hosts"},
-			"DescribeAGByName":       {"default", "two_undesired_hosts", "two_undesired_hosts_two_terminating"},
-		},
-	}
-
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default", "default", "default"},
-			"GetMesosSlaves":     {"default", "default", "default"},
-			"GetMesosTasks":      {"default", "notasks", "notasks"},
-		},
-	}
-
-	deathNodeWatcher := newWatcher(awsConn, mesosConn, 0)
-
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-
-	destroyInstanceCall := awsConn.Requests["CompleteLifecycleAction"]
-	if destroyInstanceCall == nil {
-		t.Fatal("Two instance destroy should have been called. Found nil")
-	}
-	if len(destroyInstanceCall) != 2 {
-		t.Fatal("Two instance destroy should have been called. Found incorrect number")
-	}
-
-	if destroyInstanceCall[0][1] == destroyInstanceCall[1][1] {
-		t.Fatal("Two instance destroy have been called with the same id")
-	}
-}
-
-func TestInstanceDeleteIfDelayDeleteIsSet(t *testing.T) {
-
-	log.SetLevel(log.DebugLevel)
-
-	awsConn := &aws.ConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": {
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-			},
-			"DescribeInstancesByTag": {"default", "two_undesired_hosts",
-				"two_undesired_hosts", "two_undesired_hosts", "two_undesired_hosts"},
-			"DescribeAGByName": {"default", "two_undesired_hosts", "two_undesired_hosts_two_terminating",
-				"two_undesired_hosts_two_terminating", "two_undesired_hosts_two_terminating"},
-		},
-	}
-
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default", "default", "default", "default", "default"},
-			"GetMesosSlaves":     {"default", "default", "default", "default", "default"},
-			"GetMesosTasks":      {"default", "notasks", "notasks", "notasks", "notasks"},
-		},
-	}
-
-	deathNodeWatcher := newWatcher(awsConn, mesosConn, 1)
-
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-
-	detachInstanceCall := awsConn.Requests["RemoveASGInstanceProtection"]
-	if len(detachInstanceCall) != 2 {
-		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
-	}
-
-	setTagInstanceCall := awsConn.Requests["SetInstanceTag"]
-	if len(setTagInstanceCall) != 2 {
-		t.Fatalf("Incorrect number of setTagInstanceCall calls. Actual: %s, Expected: 2", len(setTagInstanceCall))
-	}
-	if setTagInstanceCall[0][2] == setTagInstanceCall[1][2] {
-		t.Fatal("setTagInstance called two times for the same instance id", len(setTagInstanceCall))
-	}
-
-	destroyInstanceCall := awsConn.Requests["CompleteLifecycleAction"]
-	if destroyInstanceCall == nil {
-		t.Fatal("Two instance destroy should have been called. Found nil")
-	}
-	if len(destroyInstanceCall) != 1 {
-		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 1", len(destroyInstanceCall))
-	}
-
-	deathNodeWatcher.Run()
-	detachInstanceCall = awsConn.Requests["RemoveASGInstanceProtection"]
-	if len(detachInstanceCall) != 2 {
-		t.Fatalf("Incorrect number of detachInstance calls. Actual: %s, Expected: 2", len(detachInstanceCall))
-	}
-
-	setTagInstanceCall = awsConn.Requests["SetInstanceTag"]
-	if len(setTagInstanceCall) != 2 {
-		t.Fatalf("Incorrect number of setTagInstanceCall calls. Actual: %s, Expected: 2", len(setTagInstanceCall))
-	}
-
-	time.Sleep(time.Second * 2)
-	deathNodeWatcher.Run()
-
-	destroyInstanceCall = awsConn.Requests["CompleteLifecycleAction"]
-	if len(destroyInstanceCall) != 2 {
-		t.Fatalf("Incorrect number of destroy calls. Actual: %s, Expected: 2", len(destroyInstanceCall))
-	}
-}
-
-func TestNoInstancesBeingRemovedFromASG(t *testing.T) {
-
-	log.SetLevel(log.DebugLevel)
-
-	awsConn := &aws.ConnectionMock{
-		Records: map[string]*[]string{
-			"DescribeInstanceById": {
-				"node1", "node2", "node3",
-				"node1", "node2", "node3",
-			},
-			"DescribeInstancesByTag": {"default", "default"},
-			"DescribeAGByName":       {"default", "default"},
-		},
-	}
-
-	mesosConn := &mesos.ClientMock{
-		Records: map[string]*[]string{
-			"GetMesosFrameworks": {"default", "default"},
-			"GetMesosSlaves":     {"default", "default"},
-			"GetMesosTasks":      {"default", "default"},
-		},
-	}
-
-	deathNodeWatcher := newWatcher(awsConn, mesosConn, 0)
-
-	deathNodeWatcher.Run()
-	deathNodeWatcher.Run()
-
-	detachInstanceCall := awsConn.Requests["DetachInstance"]
-	if detachInstanceCall != nil {
-		t.Fatal("One instance should have been removed from ASG. Found nil")
-	}
-}
-
-func newWatcher(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, delayDeleteSeconds int) *Watcher {
-
-	protectedFrameworks := []string{"frameworkName1"}
-	protectedTasksLabels := []string{"DEATHNODE_PROTECTED"}
-	autoscalingGroupsNames := []string{"some-Autoscaling-Group"}
-
-	constraintsType := "noContraint"
-	recommenderType := "smallestInstanceId"
-
-	mesosMonitor := monitor.NewMesosMonitor(mesosConn, protectedFrameworks, protectedTasksLabels)
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, autoscalingGroupsNames, "DEATH_NODE_MARK")
-	notebook := NewNotebook(autoscalingGroups, awsConn, mesosMonitor, delayDeleteSeconds, "DEATH_NODE_MARK")
-	deathNodeWatcher := NewWatcher(notebook, mesosMonitor, autoscalingGroups, constraintsType, recommenderType)
+	deathNodeWatcher := NewWatcher(ctx)
 	return deathNodeWatcher
+}
+
+func runWatcher(testValues testCollectionValues) {
+
+	watcher := newWatcher(testValues)
+	for iter := 0; iter<testValues.times; iter++ {
+		watcher.Run()
+	}
 }

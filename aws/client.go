@@ -26,12 +26,12 @@ type Client struct {
 type ClientInterface interface {
 	DescribeInstanceByID(instanceID string) (*ec2.Instance, error)
 	DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error)
-	DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error)
-	RemoveASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error
+	DescribeAGsByPrefix(autoscalingGroupName string) ([]*autoscaling.Group, error)
+	RemoveASGInstanceProtection(autoscalingGroupName, instanceID *string) error
 	SetASGInstanceProtection(autoscalingGroupName *string, instanceIDs []*string) error
 	SetInstanceTag(key, value, instanceID string) error
-	HasLifeCycleHook(autoscalingGroupName *string) (bool, error)
-	PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error
+	HasLifeCycleHook(autoscalingGroupName string) (bool, error)
+	PutLifeCycleHook(autoscalingGroupName string, heartbeatTimeout *int64) error
 	CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error
 }
 
@@ -71,10 +71,10 @@ func (c *Client) CompleteLifecycleAction(autoscalingGroupName, instanceID *strin
 }
 
 // HasLifeCycleHook checks if deathnode lifecyclehook is enabled for an autoscalingGroup
-func (c *Client) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
+func (c *Client) HasLifeCycleHook(autoscalingGroupName string) (bool, error) {
 
 	describeLifecycleHooksInput := &autoscaling.DescribeLifecycleHooksInput{
-		AutoScalingGroupName: autoscalingGroupName,
+		AutoScalingGroupName: aws.String(autoscalingGroupName),
 		LifecycleHookNames:   []*string{aws.String(lifecycleHookName)},
 	}
 
@@ -87,10 +87,10 @@ func (c *Client) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
 }
 
 // PutLifeCycleHook adds an INSTANCE_TERMINATING lifecycle hook to an autoscalingGroup
-func (c *Client) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error {
+func (c *Client) PutLifeCycleHook(autoscalingGroupName string, heartbeatTimeout *int64) error {
 
 	putLifecycleHookInput := &autoscaling.PutLifecycleHookInput{
-		AutoScalingGroupName: autoscalingGroupName,
+		AutoScalingGroupName: aws.String(autoscalingGroupName),
 		DefaultResult:        aws.String(continueString),
 		HeartbeatTimeout:     heartbeatTimeout,
 		LifecycleHookName:    aws.String(lifecycleHookName),
@@ -101,8 +101,8 @@ func (c *Client) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout
 	return err
 }
 
-// DescribeAGByName returns all autoscaling groups that matches a certain prefix
-func (c *Client) DescribeAGByName(autoscalingGroupPrefix string) ([]*autoscaling.Group, error) {
+// DescribeAGsByPrefix returns all autoscaling groups that matches a certain prefix
+func (c *Client) DescribeAGsByPrefix(autoscalingGroupPrefix string) ([]*autoscaling.Group, error) {
 
 	autoscalingGroupList := []*autoscaling.Group{}
 
@@ -212,12 +212,12 @@ func (c *Client) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance, error) 
 }
 
 // RemoveASGInstanceProtection remove ProtectFromScaleIn flag from some instances from an autoscalingGroup
-func (c *Client) RemoveASGInstanceProtection(autoscalingGroupName *string, instanceIds []*string) error {
+func (c *Client) RemoveASGInstanceProtection(autoscalingGroupName, instanceID *string) error {
 
 	protectedFromScaleIn := false
 	setInstanceProtectionInput := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: autoscalingGroupName,
-		InstanceIds:          instanceIds,
+		InstanceIds:          []*string{instanceID},
 		ProtectedFromScaleIn: &protectedFromScaleIn,
 	}
 
