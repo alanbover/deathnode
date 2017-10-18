@@ -68,5 +68,5 @@ func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos
 	autoscalingGroups.Refresh()
 
 	mesosMonitor := monitor.NewMesosMonitor(mesosConn, []string{"frameworkName1"}, []string{"DEATHNODE_PROTECTED"})
-	return autoscalingGroups.GetAllMonitors()[0], mesosMonitor
+	return autoscalingGroups.GetAutoscalingGroupMonitors()[0], mesosMonitor
 }

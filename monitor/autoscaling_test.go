@@ -23,7 +23,7 @@ func TestNewAutoscalingGroup(t *testing.T) {
 			So(len(monitor.autoscaling.instanceMonitors), ShouldEqual, 3)
 		})
 		Convey("it should have no undesired instances", func() {
-			So(monitor.NumUndesiredInstances(), ShouldEqual, 0)
+			So(monitor.GetNumUndesiredInstances(), ShouldEqual, 0)
 		})
 		Convey("it should have a correct autoscalingGroup name", func() {
 			So(monitor.autoscaling.autoscalingGroupName, ShouldEqual, "some-Autoscaling-Group")
@@ -44,7 +44,7 @@ func TestUndesiredInstances(t *testing.T) {
 			})
 
 			Convey("it should have no undesired instances", func() {
-				So(monitor.NumUndesiredInstances(), ShouldEqual, 0)
+				So(monitor.GetNumUndesiredInstances(), ShouldEqual, 0)
 			})
 		})
 		Convey("if it has 3 instances and desired instances are 2", func() {
@@ -56,7 +56,7 @@ func TestUndesiredInstances(t *testing.T) {
 			})
 
 			Convey("it should have one undesired instance", func() {
-				So(monitor.NumUndesiredInstances(), ShouldEqual, 1)
+				So(monitor.GetNumUndesiredInstances(), ShouldEqual, 1)
 			})
 		})
 	})
@@ -74,7 +74,7 @@ func TestRefresh(t *testing.T) {
 				},
 			})
 			monitors.Refresh()
-			monitor := monitors.GetAllMonitors()[0]
+			monitor := monitors.GetAutoscalingGroupMonitors()[0]
 			Convey("it should have 3 instances", func() {
 				So(len(monitor.autoscaling.instanceMonitors), ShouldEqual, 3)
 			})
@@ -84,7 +84,7 @@ func TestRefresh(t *testing.T) {
 				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-666ca923")
 			})
 			Convey("it should have no undesired instances", func() {
-				So(monitor.NumUndesiredInstances(), ShouldEqual, 0)
+				So(monitor.GetNumUndesiredInstances(), ShouldEqual, 0)
 			})
 			Convey("lifecycleState should have been updated", func() {
 				lcState := monitor.autoscaling.instanceMonitors["i-34719eb8"].instance.lifecycleState
@@ -104,7 +104,7 @@ func TestRefresh(t *testing.T) {
 			})
 			monitors.Refresh()
 			Convey("two different autoscalingGroups should be monitored", func() {
-				currentMonitors := monitors.GetAllMonitors()
+				currentMonitors := monitors.GetAutoscalingGroupMonitors()
 				So(len(currentMonitors), ShouldEqual, 2)
 				So(
 					currentMonitors[0].autoscaling.autoscalingGroupName, ShouldNotEqual,
@@ -112,7 +112,7 @@ func TestRefresh(t *testing.T) {
 			})
 			Convey("it dissapears after a new refresh", func() {
 				monitors.Refresh()
-				So(len(monitors.GetAllMonitors()), ShouldEqual, 1)
+				So(len(monitors.GetAutoscalingGroupMonitors()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -199,10 +199,10 @@ func TestGetInstanceById(t *testing.T) {
 
 func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 
-	return newTestAutoscalingMonitors(awsConn).GetAllMonitors()[0]
+	return newTestAutoscalingMonitors(awsConn).GetAutoscalingGroupMonitors()[0]
 }
 
-func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupsMonitor {
+func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitorCollection {
 
 	autoscalingGroupNames := []string{"some-Autoscaling-Group"}
 	autoscalingGroups, _ := NewAutoscalingGroupMonitors(awsConn, autoscalingGroupNames, "DEATH_NODE_MARK")

@@ -13,11 +13,11 @@ type Watcher struct {
 	mesosMonitor      *monitor.MesosMonitor
 	constraints       constraint
 	recommender       recommender
-	autoscalingGroups *monitor.AutoscalingGroupsMonitor
+	autoscalingGroups *monitor.AutoscalingGroupMonitorCollection
 }
 
 // NewWatcher returns a new Watcher object
-func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupsMonitor, constraintType, recommenderType string) *Watcher {
+func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, autoscalingGroups *monitor.AutoscalingGroupMonitorCollection, constraintType, recommenderType string) *Watcher {
 
 	contrainsts, err := newConstraint(constraintType)
 	if err != nil {
@@ -42,7 +42,7 @@ func NewWatcher(notebook *Notebook, mesosMonitor *monitor.MesosMonitor, autoscal
 // kill and marks them to be removed
 func (y *Watcher) TagInstancesToBeRemoved(autoscalingMonitor *monitor.AutoscalingGroupMonitor) error {
 
-	numUndesiredInstances := autoscalingMonitor.NumUndesiredInstances()
+	numUndesiredInstances := autoscalingMonitor.GetNumUndesiredInstances()
 	log.Debugf("Undesired Mesos Agents: %d", numUndesiredInstances)
 
 	removedInstances := 0
@@ -82,7 +82,7 @@ func (y *Watcher) Run() {
 	y.mesosMonitor.Refresh()
 
 	// For each autoscaling monitor, check if any instances needs to be removed
-	for _, autoscalingGroup := range y.autoscalingGroups.GetAllMonitors() {
+	for _, autoscalingGroup := range y.autoscalingGroups.GetAutoscalingGroupMonitors() {
 		y.TagInstancesToBeRemoved(autoscalingGroup)
 	}
 

@@ -34,5 +34,5 @@ func prepareMonitors(awsConn *aws.ConnectionMock) *monitor.AutoscalingGroupMonit
 	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(awsConn, []string{"some-Autoscaling-Group"}, "DEATH_NODE_MARK")
 	autoscalingGroups.Refresh()
 
-	return autoscalingGroups.GetAllMonitors()[0]
+	return autoscalingGroups.GetAutoscalingGroupMonitors()[0]
 }
