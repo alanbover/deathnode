@@ -30,8 +30,8 @@ func (c *ConnectionMock) DescribeInstancesByTag(tagKey string) ([]*ec2.Instance,
 	return *mockResponse.(*[]*ec2.Instance), nil
 }
 
-// DescribeAGByName is a mock call for testing purposes
-func (c *ConnectionMock) DescribeAGByName(autoscalingGroupName string) ([]*autoscaling.Group, error) {
+// DescribeAGsByPrefix is a mock call for testing purposes
+func (c *ConnectionMock) DescribeAGsByPrefix(autoscalingGroupName string) ([]*autoscaling.Group, error) {
 
 	mockResponse, _ := c.replay(&[]*autoscaling.Group{}, "DescribeAGByName")
 	return *mockResponse.(*[]*autoscaling.Group), nil
@@ -70,7 +70,7 @@ func (c *ConnectionMock) SetInstanceTag(key, value, instanceID string) error {
 }
 
 // HasLifeCycleHook is a mock call for testing purposes
-func (c *ConnectionMock) HasLifeCycleHook(autoscalingGroupName *string) (bool, error) {
+func (c *ConnectionMock) HasLifeCycleHook(autoscalingGroupName string) (bool, error) {
 
 	records, ok := c.Records["HasLifeCycleHook"]
 	if !ok {
@@ -83,9 +83,9 @@ func (c *ConnectionMock) HasLifeCycleHook(autoscalingGroupName *string) (bool, e
 }
 
 // PutLifeCycleHook is a mock call for testing purposes
-func (c *ConnectionMock) PutLifeCycleHook(autoscalingGroupName *string, heartbeatTimeout *int64) error {
+func (c *ConnectionMock) PutLifeCycleHook(autoscalingGroupName string, heartbeatTimeout *int64) error {
 
-	c.addRequests("PutLifeCycleHook", []string{*autoscalingGroupName, fmt.Sprintf("%d", *heartbeatTimeout)})
+	c.addRequests("PutLifeCycleHook", []string{autoscalingGroupName, fmt.Sprintf("%d", *heartbeatTimeout)})
 	return nil
 }
 

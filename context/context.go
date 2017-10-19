@@ -5,16 +5,18 @@ import (
 	"github.com/alanbover/deathnode/mesos"
 )
 
+// ApplicationConf stores the application configurations
 type ApplicationConf struct {
-	ConstraintsType 		string
-	RecommenderType 		string
-	DeathNodeMark 			string
-	AutoscalingGroupPrefixes	arrayFlags
-	ProtectedFrameworks		arrayFlags
-	ProtectedTasksLabels 		arrayFlags
-	DelayDeleteSeconds 		int
+	ConstraintsType          string
+	RecommenderType          string
+	DeathNodeMark            string
+	AutoscalingGroupPrefixes arrayFlags
+	ProtectedFrameworks      arrayFlags
+	ProtectedTasksLabels     arrayFlags
+	DelayDeleteSeconds       int
 }
 
+// ApplicationContext stores the application configurations and both AWS and Mesos connections
 type ApplicationContext struct {
 	Conf      ApplicationConf
 	AwsConn   aws.ClientInterface

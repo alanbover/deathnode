@@ -111,7 +111,7 @@ func TestDestroyInstanceAttempt(t *testing.T) {
 				So(len(awsConn.Requests["CompleteLifecycleAction"]), ShouldEqual, 2)
 			})
 			Convey("only one should be removed if delayDeleteSeconds", func() {
-				notebook.delayDeleteSeconds = 100
+				notebook.ctx.Conf.DelayDeleteSeconds = 100
 				mesosConn.Records = map[string]*[]string{
 					"GetMesosFrameworks": {"default"},
 					"GetMesosSlaves":     {"default"},
@@ -141,8 +141,7 @@ func newNotebook(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, d
 	}
 
 	mesosMonitor := monitor.NewMesosMonitor(ctx)
-	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
-
+	autoscalingGroups := monitor.NewAutoscalingServiceMonitor(ctx)
 	mesosMonitor.Refresh()
 	autoscalingGroups.Refresh()
 

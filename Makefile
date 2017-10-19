@@ -28,3 +28,10 @@ lint:
 	golint monitor/
 	golint context/
 
+fmt:
+	go fmt mesos/*.go
+	go fmt aws/*.go
+	go fmt deathnode/*.go
+	go fmt monitor/*.go
+	go fmt context/*.go
+

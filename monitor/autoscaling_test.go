@@ -21,13 +21,13 @@ func TestNewAutoscalingGroup(t *testing.T) {
 			So(monitor, ShouldNotBeNil)
 		})
 		Convey("it should have 3 instances", func() {
-			So(len(monitor.autoscaling.instanceMonitors), ShouldEqual, 3)
+			So(len(monitor.instanceMonitors), ShouldEqual, 3)
 		})
 		Convey("it should have no undesired instances", func() {
 			So(monitor.GetNumUndesiredInstances(), ShouldEqual, 0)
 		})
 		Convey("it should have a correct autoscalingGroup name", func() {
-			So(monitor.autoscaling.autoscalingGroupName, ShouldEqual, "some-Autoscaling-Group")
+			So(monitor.autoscalingGroupName, ShouldEqual, "some-Autoscaling-Group")
 		})
 	})
 }
@@ -75,20 +75,20 @@ func TestRefresh(t *testing.T) {
 				},
 			})
 			monitors.Refresh()
-			monitor := monitors.GetAutoscalingGroupMonitors()[0]
+			monitor := monitors.GetAutoscalingGroupMonitorsList()[0]
 			Convey("it should have 3 instances", func() {
-				So(len(monitor.autoscaling.instanceMonitors), ShouldEqual, 3)
+				So(len(monitor.instanceMonitors), ShouldEqual, 3)
 			})
 			Convey("it should have updated instance id's", func() {
-				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-34719eb8")
-				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-777a73cf")
-				So(monitor.autoscaling.instanceMonitors, ShouldContainKey, "i-666ca923")
+				So(monitor.instanceMonitors, ShouldContainKey, "i-34719eb8")
+				So(monitor.instanceMonitors, ShouldContainKey, "i-777a73cf")
+				So(monitor.instanceMonitors, ShouldContainKey, "i-666ca923")
 			})
 			Convey("it should have no undesired instances", func() {
 				So(monitor.GetNumUndesiredInstances(), ShouldEqual, 0)
 			})
 			Convey("lifecycleState should have been updated", func() {
-				lcState := monitor.autoscaling.instanceMonitors["i-34719eb8"].instance.lifecycleState
+				lcState := monitor.instanceMonitors["i-34719eb8"].lifecycleState
 				So(lcState, ShouldEqual, LifecycleStateTerminatingWait)
 			})
 		})
@@ -105,15 +105,15 @@ func TestRefresh(t *testing.T) {
 			})
 			monitors.Refresh()
 			Convey("two different autoscalingGroups should be monitored", func() {
-				currentMonitors := monitors.GetAutoscalingGroupMonitors()
+				currentMonitors := monitors.GetAutoscalingGroupMonitorsList()
 				So(len(currentMonitors), ShouldEqual, 2)
 				So(
-					currentMonitors[0].autoscaling.autoscalingGroupName, ShouldNotEqual,
-					currentMonitors[1].autoscaling.autoscalingGroupName)
+					currentMonitors[0].autoscalingGroupName, ShouldNotEqual,
+					currentMonitors[1].autoscalingGroupName)
 			})
 			Convey("it dissapears after a new refresh", func() {
 				monitors.Refresh()
-				So(len(monitors.GetAutoscalingGroupMonitors()), ShouldEqual, 1)
+				So(len(monitors.GetAutoscalingGroupMonitorsList()), ShouldEqual, 1)
 			})
 		})
 	})
@@ -162,14 +162,14 @@ func TestGetInstances(t *testing.T) {
 		})
 		Convey("but after mark on instance to be deleted", func() {
 			instanceToBeMarked := monitor.GetInstances()[0]
-			instanceToBeMarked.MarkToBeRemoved()
+			instanceToBeMarked.TagToBeRemoved()
 			Convey("GetInstances should not return it", func() {
 				So(instanceToBeMarked, ShouldNotBeIn, monitor.GetInstances())
 			})
 		})
 		Convey("but after delete one instance", func() {
 			instanceToBeMarked := monitor.GetInstances()[0]
-			delete(monitor.autoscaling.instanceMonitors, instanceToBeMarked.instance.instanceID)
+			delete(monitor.instanceMonitors, instanceToBeMarked.instanceID)
 			Convey("GetInstances should not return it", func() {
 				So(instanceToBeMarked, ShouldNotBeIn, monitor.GetInstances())
 			})
@@ -189,7 +189,7 @@ func TestGetInstanceById(t *testing.T) {
 		})
 		Convey("GetInstanceById should return an instanceMonitor if it exists", func() {
 			instance, _ := monitors.GetInstanceByID("i-34719eb8")
-			So(*instance.GetInstanceID(), ShouldEqual, "i-34719eb8")
+			So(*instance.InstanceID(), ShouldEqual, "i-34719eb8")
 		})
 		Convey("GetInstanceById should return error if instance doesn't exist", func() {
 			_, err := monitors.GetInstanceByID("i-doesntexist")
@@ -200,10 +200,10 @@ func TestGetInstanceById(t *testing.T) {
 
 func newTestMonitor(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitor {
 
-	return newTestAutoscalingMonitors(awsConn).GetAutoscalingGroupMonitors()[0]
+	return newTestAutoscalingMonitors(awsConn).GetAutoscalingGroupMonitorsList()[0]
 }
 
-func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMonitorCollection {
+func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingServiceMonitor {
 
 	ctx := &context.ApplicationContext{
 		AwsConn: awsConn,
@@ -213,7 +213,7 @@ func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMo
 		},
 	}
 
-	autoscalingGroups := NewAutoscalingGroupMonitors(ctx)
+	autoscalingGroups := NewAutoscalingServiceMonitor(ctx)
 	autoscalingGroups.Refresh()
 	return autoscalingGroups
 }

@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
@@ -9,35 +10,42 @@ import (
 func TestNewInstanceMonitor(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor", t, func() {
-		conn := &aws.ConnectionMock{
+		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default"},
 			},
 		}
-		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", false)
+		ctx := &context.ApplicationContext{
+			AwsConn: awsConn,
+			Conf: context.ApplicationConf{
+				DeathNodeMark: "DEATH_NODE_MARK",
+			},
+		}
+
+		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", false)
 
 		Convey("it should not be nil", func() {
 			So(monitor, ShouldNotBeNil)
 		})
 		Convey("it should have a correct instanceId", func() {
-			So(monitor.instance.instanceID, ShouldEqual, "i-249b35ae")
+			So(monitor.instanceID, ShouldEqual, "i-249b35ae")
 		})
 		Convey("it shouldn't be marked to be removed", func() {
-			So(monitor.instance.isMarkedToBeRemoved, ShouldBeFalse)
+			So(monitor.isTagToBeRemoved, ShouldBeFalse)
 		})
 		Convey("and MarkToBeRemoved is called", func() {
-			monitor.MarkToBeRemoved()
+			monitor.TagToBeRemoved()
 			Convey("SetInstanceTag should be called with correct parameters", func() {
-				callArguments := conn.Requests["SetInstanceTag"]
+				callArguments := awsConn.Requests["SetInstanceTag"]
 				So(callArguments[0][0], ShouldEqual, "DEATH_NODE_MARK")
 				So(callArguments[0][2], ShouldEqual, "i-249b35ae")
 			})
 		})
 		Convey("GetIP should return it's ip", func() {
-			So(monitor.GetIP(), ShouldEqual, "10.0.0.2")
+			So(monitor.IP(), ShouldEqual, "10.0.0.2")
 		})
 		Convey("GetInstanceID should return it's ip", func() {
-			So(*monitor.GetInstanceID(), ShouldEqual, "i-249b35ae")
+			So(*monitor.InstanceID(), ShouldEqual, "i-249b35ae")
 		})
 	})
 }
@@ -45,14 +53,22 @@ func TestNewInstanceMonitor(t *testing.T) {
 func TestInstanceMarkToBeRemoved(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor that is marked to be removed", t, func() {
-		conn := &aws.ConnectionMock{
+		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"node_with_tag"},
 			},
 		}
-		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", false)
+
+		ctx := &context.ApplicationContext{
+			AwsConn: awsConn,
+			Conf: context.ApplicationConf{
+				DeathNodeMark: "DEATH_NODE_MARK",
+			},
+		}
+
+		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", false)
 		Convey("and isMarkToBeRemoved is called", func() {
-			So(monitor.instance.isMarkedToBeRemoved, ShouldBeTrue)
+			So(monitor.isTagToBeRemoved, ShouldBeTrue)
 		})
 	})
 }
@@ -60,25 +76,33 @@ func TestInstanceMarkToBeRemoved(t *testing.T) {
 func TestInstanceProtection(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor with instance protection true", t, func() {
-		conn := &aws.ConnectionMock{
+		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"node_with_tag"},
 			},
 		}
-		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", true)
+
+		ctx := &context.ApplicationContext{
+			AwsConn: awsConn,
+			Conf: context.ApplicationConf{
+				DeathNodeMark: "DEATH_NODE_MARK",
+			},
+		}
+
+		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", true)
 		Convey("instance should have instanceProtection", func() {
-			So(monitor.instance.isProtected, ShouldBeTrue)
+			So(monitor.isProtected, ShouldBeTrue)
 		})
 		Convey("and RemoveInstanceProtection is called", func() {
 			monitor.RemoveInstanceProtection()
 			Convey("instance should not have instanceProtection", func() {
-				So(monitor.instance.isProtected, ShouldBeFalse)
+				So(monitor.isProtected, ShouldBeFalse)
 			})
 			Convey("RemoveASGInstanceProtection aws should have been called", func() {
-				So(conn.Requests, ShouldContainKey, "RemoveASGInstanceProtection")
-				So(len(conn.Requests["RemoveASGInstanceProtection"]), ShouldEqual, 1)
-				So(conn.Requests["RemoveASGInstanceProtection"][0][1], ShouldEqual, "i-249b35ae")
-				So(conn.Requests["RemoveASGInstanceProtection"][0][0], ShouldEqual, "autoscalingid")
+				So(awsConn.Requests, ShouldContainKey, "RemoveASGInstanceProtection")
+				So(len(awsConn.Requests["RemoveASGInstanceProtection"]), ShouldEqual, 1)
+				So(awsConn.Requests["RemoveASGInstanceProtection"][0][1], ShouldEqual, "i-249b35ae")
+				So(awsConn.Requests["RemoveASGInstanceProtection"][0][0], ShouldEqual, "autoscalingid")
 			})
 		})
 	})
@@ -87,30 +111,38 @@ func TestInstanceProtection(t *testing.T) {
 func TestLifecycleState(t *testing.T) {
 
 	Convey("When creating a new instanceMonitor", t, func() {
-		conn := &aws.ConnectionMock{
+		awsConn := &aws.ConnectionMock{
 			Records: map[string]*[]string{
 				"DescribeInstanceById": {"default"},
 			},
 		}
-		monitor, _ := newInstanceMonitor(conn, "autoscalingid", "i-249b35ae", "DEATH_NODE_MARK", "InService", true)
+
+		ctx := &context.ApplicationContext{
+			AwsConn: awsConn,
+			Conf: context.ApplicationConf{
+				DeathNodeMark: "DEATH_NODE_MARK",
+			},
+		}
+
+		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", true)
 		Convey("and we call SetLifecycleState", func() {
 			Convey("when the instance has instanceProtection enabled", func() {
 				monitor.setLifecycleState(LifecycleStateTerminatingWait)
 				Convey("instance should have new LifecycleState value", func() {
-					So(monitor.instance.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
+					So(monitor.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
 				})
 				Convey("MarkToBeRemoved should have been called", func() {
-					So(conn.Requests["SetInstanceTag"], ShouldNotBeNil)
+					So(awsConn.Requests["SetInstanceTag"], ShouldNotBeNil)
 				})
 			})
 			Convey("when the instance has instanceProtection disabled", func() {
-				monitor.instance.isProtected = false
+				monitor.isProtected = false
 				monitor.setLifecycleState(LifecycleStateTerminatingWait)
 				Convey("instance should have new LifecycleState value", func() {
-					So(monitor.instance.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
+					So(monitor.lifecycleState, ShouldEqual, LifecycleStateTerminatingWait)
 				})
 				Convey("MarkToBeRemoved should not have been called", func() {
-					So(conn.Requests["SetInstanceTag"], ShouldBeNil)
+					So(awsConn.Requests["SetInstanceTag"], ShouldBeNil)
 				})
 			})
 		})

@@ -105,28 +105,27 @@ type MaintenanceStart struct {
 func (c *Client) SetHostsInMaintenance(hosts map[string]string) error {
 
 	url := fmt.Sprintf(c.MasterURL + "/maintenance/schedule")
-
 	payload := genMaintenanceCallPayload(hosts)
-
-	err := mesosPostAPICall(url, payload)
-	return err
+	return mesosPostAPICall(url, payload)
 }
 
 // GetMesosTasks return the running tasks on the Mesos cluster
 func (c *Client) GetMesosTasks() (*TasksResponse, error) {
 
 	var tasks TasksResponse
-	c.getMesosTasksRecursive(&tasks, 0)
+	if err := c.getMesosTasksRecursive(&tasks, 0); err != nil {
+		return nil, err
+	}
 
 	return &tasks, nil
 }
 
 func (c *Client) getMesosTasksRecursive(tasksResponse *TasksResponse, offset int) error {
 
-	var tasks TasksResponse
 	url := fmt.Sprintf("%s/master/tasks?limit=100&offset=%d", c.MasterURL, offset)
-	err := mesosGetAPICall(url, &tasks)
-	if err != nil {
+
+	var tasks TasksResponse
+	if err := mesosGetAPICall(url, &tasks); err != nil {
 		return err
 	}
 
@@ -145,7 +144,9 @@ func (c *Client) GetMesosFrameworks() (*FrameworksResponse, error) {
 	url := fmt.Sprintf(c.MasterURL + "/master/frameworks")
 
 	var frameworks FrameworksResponse
-	mesosGetAPICall(url, &frameworks)
+	if err := mesosGetAPICall(url, &frameworks); err != nil {
+		return nil, err
+	}
 
 	return &frameworks, nil
 }
@@ -156,7 +157,9 @@ func (c *Client) GetMesosAgents() (*SlavesResponse, error) {
 	url := fmt.Sprintf(c.MasterURL + "/master/slaves")
 
 	var slaves SlavesResponse
-	mesosGetAPICall(url, &slaves)
+	if err := mesosGetAPICall(url, &slaves); err != nil {
+		return nil, err
+	}
 
 	return &slaves, nil
 }

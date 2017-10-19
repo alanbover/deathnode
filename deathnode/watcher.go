@@ -10,65 +10,56 @@ import (
 
 // Watcher stores the enough information for decide, if instances need to be removed, which ones are the best
 type Watcher struct {
-	notebook          *Notebook
-	mesosMonitor      *monitor.MesosMonitor
-	constraints       constraint
-	recommender       recommender
-	autoscalingGroups *monitor.AutoscalingGroupMonitorCollection
+	notebook                  *Notebook
+	mesosMonitor              *monitor.MesosMonitor
+	autoscalingServiceMonitor *monitor.AutoscalingServiceMonitor
+	constraints               constraint
+	recommender               recommender
 }
 
 // NewWatcher returns a new Watcher object
 func NewWatcher(ctx *context.ApplicationContext) *Watcher {
 
-	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
+	autoscalingServiceMonitor := monitor.NewAutoscalingServiceMonitor(ctx)
 	mesosMonitor := monitor.NewMesosMonitor(ctx)
-
-	// Create deathnoteWatcher
-	notebook := NewNotebook(ctx, autoscalingGroups, mesosMonitor)
 
 	contrainsts, err := newConstraint(ctx.Conf.ConstraintsType)
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	recommender, err := newRecommender(ctx.Conf.RecommenderType)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return &Watcher{
-		notebook:          notebook,
-		mesosMonitor:      mesosMonitor,
-		constraints:       contrainsts,
-		recommender:       recommender,
-		autoscalingGroups: autoscalingGroups,
+		notebook:                  NewNotebook(ctx, autoscalingServiceMonitor, mesosMonitor),
+		mesosMonitor:              mesosMonitor,
+		constraints:               contrainsts,
+		recommender:               recommender,
+		autoscalingServiceMonitor: autoscalingServiceMonitor,
 	}
 }
 
 // TagInstancesToBeRemoved finds, if any instances to be removed for an autoscaling group, the best instances to
-// kill and marks them to be removed
-func (y *Watcher) TagInstancesToBeRemoved(autoscalingMonitor *monitor.AutoscalingGroupMonitor) error {
+// kill and tags them to be removed
+func (y *Watcher) TagInstancesToBeRemoved(autoscalingMonitor *monitor.AutoscalingGroupMonitor) {
 
 	numUndesiredInstances := autoscalingMonitor.GetNumUndesiredInstances()
 	log.Debugf("Undesired Mesos Agents: %d", numUndesiredInstances)
 
-	removedInstances := 0
+	for removedInstances := 0; removedInstances < numUndesiredInstances; removedInstances++ {
 
-	for removedInstances < numUndesiredInstances {
-		allowedInstancesToKill := y.constraints.filter(autoscalingMonitor.GetInstances(), y.mesosMonitor)
-		bestInstanceToKill := y.recommender.find(allowedInstancesToKill)
-		log.Debugf("Mark instance %s for removal", *bestInstanceToKill.GetInstanceID())
-		err := bestInstanceToKill.MarkToBeRemoved()
-		if err != nil {
-			log.Errorf("Unable to mark instance %s for removal", bestInstanceToKill.GetIP())
+		allowedInstances := y.constraints.filter(autoscalingMonitor.GetInstances(), y.mesosMonitor)
+		bestInstance := y.recommender.find(allowedInstances)
+
+		log.Debugf("Tagging instance %s for removal", *bestInstance.InstanceID())
+		if err := bestInstance.TagToBeRemoved(); err != nil {
+			log.Errorf("Unable to tag instance %s for removal", bestInstance.IP())
 			log.Error(err)
 			break
 		}
-
-		removedInstances++
 	}
-
-	return nil
 }
 
 // DestroyInstancesAttempt try for those instances marked to be deleted to delete them
@@ -84,15 +75,13 @@ func (y *Watcher) DestroyInstancesAttempt() {
 func (y *Watcher) Run() {
 
 	log.Debug("New check triggered")
-	// Refresh autoscaling monitors and mesos monitor
-	y.autoscalingGroups.Refresh()
+
+	y.autoscalingServiceMonitor.Refresh()
 	y.mesosMonitor.Refresh()
 
-	// For each autoscaling monitor, check if any instances needs to be removed
-	for _, autoscalingGroup := range y.autoscalingGroups.GetAutoscalingGroupMonitors() {
+	for _, autoscalingGroup := range y.autoscalingServiceMonitor.GetAutoscalingGroupMonitorsList() {
 		y.TagInstancesToBeRemoved(autoscalingGroup)
 	}
 
-	// Check if any agents are drained, so we can remove them from AWS
 	y.DestroyInstancesAttempt()
 }
