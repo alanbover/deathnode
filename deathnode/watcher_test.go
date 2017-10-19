@@ -4,7 +4,6 @@ import (
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
-	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 	"testing"
 	"time"
@@ -265,9 +264,6 @@ func newWatcher(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, de
 		},
 	}
 
-	mesosMonitor := monitor.NewMesosMonitor(ctx)
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
-	notebook := NewNotebook(ctx, autoscalingGroups, mesosMonitor)
-	deathNodeWatcher := NewWatcher(ctx, notebook, mesosMonitor, autoscalingGroups)
+	deathNodeWatcher := NewWatcher(ctx)
 	return deathNodeWatcher
 }

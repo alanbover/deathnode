@@ -8,7 +8,6 @@ import (
 	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/deathnode"
 	"github.com/alanbover/deathnode/mesos"
-	"github.com/alanbover/deathnode/monitor"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,25 +28,19 @@ func main() {
 	}
 
 	// Create the monitors for autoscaling groups
-	awsConn, err := aws.NewClient(accessKey, secretKey, region, iamRole, iamSession)
-	if err != nil {
+	if awsConn, err := aws.NewClient(accessKey, secretKey, region, iamRole, iamSession); err != nil {
 		log.Fatal("Error connecting to AWS: ", err)
+	} else {
+		ctx.AwsConn = awsConn
 	}
+
 	// Create the Mesos monitor
-	mesosConn := &mesos.Client{
+	ctx.MesosConn = &mesos.Client{
 		MasterURL: mesosURL,
 	}
-	ctx.AwsConn = awsConn
-	ctx.MesosConn = mesosConn
-
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
-	mesosMonitor := monitor.NewMesosMonitor(ctx)
-
 
 	// Create deathnoteWatcher
-	notebook := deathnode.NewNotebook(ctx, autoscalingGroups, mesosMonitor)
-	deathNodeWatcher := deathnode.NewWatcher(
-		ctx, notebook, mesosMonitor, autoscalingGroups)
+	deathNodeWatcher := deathnode.NewWatcher(ctx)
 
 	ticker := time.NewTicker(time.Second * time.Duration(pollingSeconds))
 	for {

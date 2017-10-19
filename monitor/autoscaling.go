@@ -28,7 +28,7 @@ type autoscalingGroup struct {
 var lifeCycleTimeout int64 = 3600
 
 // NewAutoscalingGroupMonitors returns an AutoscalingGroups object
-func NewAutoscalingGroupMonitors(ctx *context.ApplicationContext) (*AutoscalingGroupMonitorCollection, error) {
+func NewAutoscalingGroupMonitors(ctx *context.ApplicationContext) *AutoscalingGroupMonitorCollection {
 
 	monitors := map[string]map[string]*AutoscalingGroupMonitor{}
 	for _, autoscalingGroupName := range ctx.Conf.AutoscalingGroupPrefixes {
@@ -40,7 +40,7 @@ func NewAutoscalingGroupMonitors(ctx *context.ApplicationContext) (*AutoscalingG
 		context:  ctx,
 	}
 
-	return autoscalingGroups, nil
+	return autoscalingGroups
 }
 
 // NewAutoscalingGroupMonitor returns a "empty" AutoscalingGroupMonitor object

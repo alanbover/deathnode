@@ -75,7 +75,7 @@ func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos
 		},
 	}
 
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
+	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
 	autoscalingGroups.Refresh()
 
 	mesosMonitor := monitor.NewMesosMonitor(ctx)

@@ -18,8 +18,13 @@ type Watcher struct {
 }
 
 // NewWatcher returns a new Watcher object
-func NewWatcher(ctx *context.ApplicationContext, notebook *Notebook, mesosMonitor *monitor.MesosMonitor,
-	autoscalingGroups *monitor.AutoscalingGroupMonitorCollection) *Watcher {
+func NewWatcher(ctx *context.ApplicationContext) *Watcher {
+
+	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
+	mesosMonitor := monitor.NewMesosMonitor(ctx)
+
+	// Create deathnoteWatcher
+	notebook := NewNotebook(ctx, autoscalingGroups, mesosMonitor)
 
 	contrainsts, err := newConstraint(ctx.Conf.ConstraintsType)
 	if err != nil {

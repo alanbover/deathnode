@@ -40,7 +40,7 @@ func prepareMonitors(awsConn *aws.ConnectionMock) *monitor.AutoscalingGroupMonit
 		},
 	}
 
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
+	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
 	autoscalingGroups.Refresh()
 
 	return autoscalingGroups.GetAutoscalingGroupMonitors()[0]

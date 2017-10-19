@@ -213,7 +213,7 @@ func newTestAutoscalingMonitors(awsConn *aws.ConnectionMock) *AutoscalingGroupMo
 		},
 	}
 
-	autoscalingGroups, _ := NewAutoscalingGroupMonitors(ctx)
+	autoscalingGroups := NewAutoscalingGroupMonitors(ctx)
 	autoscalingGroups.Refresh()
 	return autoscalingGroups
 }

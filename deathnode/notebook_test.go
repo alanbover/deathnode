@@ -141,7 +141,7 @@ func newNotebook(awsConn aws.ClientInterface, mesosConn mesos.ClientInterface, d
 	}
 
 	mesosMonitor := monitor.NewMesosMonitor(ctx)
-	autoscalingGroups, _ := monitor.NewAutoscalingGroupMonitors(ctx)
+	autoscalingGroups := monitor.NewAutoscalingGroupMonitors(ctx)
 
 	mesosMonitor.Refresh()
 	autoscalingGroups.Refresh()
