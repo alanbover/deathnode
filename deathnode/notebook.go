@@ -4,7 +4,7 @@ package deathnode
 // they are not running any tasks
 
 import (
-	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/monitor"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	log "github.com/sirupsen/logrus"
@@ -14,23 +14,20 @@ import (
 // Notebook stores the necessary information for deal with instances that should be deleted
 type Notebook struct {
 	mesosMonitor        *monitor.MesosMonitor
-	awsConnection       aws.ClientInterface
-	autoscalingGroups   *monitor.AutoscalingGroupsMonitor
-	delayDeleteSeconds  int
+	autoscalingGroups   *monitor.AutoscalingServiceMonitor
 	lastDeleteTimestamp time.Time
-	deathNodeMark       string
+	ctx                 *context.ApplicationContext
 }
 
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
-func NewNotebook(autoscalingGroups *monitor.AutoscalingGroupsMonitor, awsConn aws.ClientInterface, mesosMonitor *monitor.MesosMonitor, delayDeleteSeconds int, deathNodeMark string) *Notebook {
+func NewNotebook(ctx *context.ApplicationContext, autoscalingGroups *monitor.AutoscalingServiceMonitor,
+	mesosMonitor *monitor.MesosMonitor) *Notebook {
 
 	return &Notebook{
 		mesosMonitor:        mesosMonitor,
-		awsConnection:       awsConn,
 		autoscalingGroups:   autoscalingGroups,
-		delayDeleteSeconds:  delayDeleteSeconds,
 		lastDeleteTimestamp: time.Time{},
-		deathNodeMark:       deathNodeMark,
+		ctx:                 ctx,
 	}
 }
 
@@ -44,6 +41,57 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 	return n.mesosMonitor.SetMesosAgentsInMaintenance(hosts)
 }
 
+func (n *Notebook) shouldWaitForNextDestroy() bool {
+	return time.Since(n.lastDeleteTimestamp).Seconds() <= float64(n.ctx.Conf.DelayDeleteSeconds)
+}
+
+func (n *Notebook) destroyInstance(instanceMonitor *monitor.InstanceMonitor) error {
+
+	if instanceMonitor.LifecycleState() == monitor.LifecycleStateTerminatingWait {
+		log.Infof("Destroy instance %s", *instanceMonitor.InstanceID())
+		err := n.ctx.AwsConn.CompleteLifecycleAction(
+			instanceMonitor.AutoscalingGroupID(), instanceMonitor.InstanceID())
+		if err != nil {
+			log.Errorf("Unable to complete lifecycle action on instance %s", *instanceMonitor.InstanceID())
+			return err
+		}
+		if n.ctx.Conf.DelayDeleteSeconds != 0 {
+			n.lastDeleteTimestamp = time.Now()
+		}
+	} else {
+		log.Debugf("Instance %s waiting for AWS to start termination lifecycle", *instanceMonitor.InstanceID())
+	}
+	return nil
+}
+
+func (n *Notebook) destroyInstanceAttempt(instance *ec2.Instance) error {
+
+	log.Debugf("Starting process to delete instance %s", *instance.InstanceId)
+
+	instanceMonitor, err := n.autoscalingGroups.GetInstanceByID(*instance.InstanceId)
+	if err != nil {
+		return err
+	}
+
+	// If the instance is protected, remove instance protection
+	n.removeInstanceProtection(instanceMonitor)
+
+	// Check if we need to wait before destroy another instance
+	if n.shouldWaitForNextDestroy() {
+		log.Debugf("Seconds since last destroy: %v. Instance %s will not be destroyed",
+			time.Since(n.lastDeleteTimestamp).Seconds(), *instance.InstanceId)
+		return nil
+	}
+
+	// If the instance can be killed, delete it
+	if !n.mesosMonitor.IsProtected(*instance.PrivateIpAddress) {
+		if err := n.destroyInstance(instanceMonitor); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DestroyInstancesAttempt iterates around all instances marked to be deleted, and:
 // - set them in maintenance
 // - remove instance protection
@@ -51,9 +99,9 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 func (n *Notebook) DestroyInstancesAttempt() error {
 
 	// Get instances marked for removal
-	instances, err := n.awsConnection.DescribeInstancesByTag(n.deathNodeMark)
+	instances, err := n.ctx.AwsConn.DescribeInstancesByTag(n.ctx.Conf.DeathNodeMark)
 	if err != nil {
-		log.Debugf("Unable to find instances with %s tag", n.deathNodeMark)
+		log.Debugf("Error retrieving instances with tag %s", n.ctx.Conf.DeathNodeMark)
 		return err
 	}
 
@@ -61,40 +109,8 @@ func (n *Notebook) DestroyInstancesAttempt() error {
 	n.setAgentsInMaintenance(instances)
 
 	for _, instance := range instances {
-
-		log.Debugf("Starting process to delete instance %s", *instance.InstanceId)
-
-		instanceMonitor, err := n.autoscalingGroups.GetInstanceByID(*instance.InstanceId)
-		if err != nil {
-			return err
-		}
-
-		// If the instance is protected, remove instance protection
-		n.removeInstanceProtection(instanceMonitor)
-
-		// Next iteration if an instance was previously deleted before delayDeleteSeconds
-		if n.delayDeleteSeconds != 0 && time.Since(n.lastDeleteTimestamp).Seconds() < float64(n.delayDeleteSeconds) {
-			log.Debugf("Seconds since last destroy: %v. No instances will be destroyed", time.Since(n.lastDeleteTimestamp).Seconds())
-			continue
-		}
-
-		// If the instance can be killed, delete it
-		isProtected := n.mesosMonitor.IsProtected(*instance.PrivateIpAddress)
-
-		if !isProtected {
-			if instanceMonitor.GetLifecycleState() == monitor.LifecycleStateTerminatingWait {
-				log.Infof("Destroy instance %s", *instanceMonitor.GetInstanceID())
-				err := n.awsConnection.CompleteLifecycleAction(instanceMonitor.GetAutoscalingGroupID(), instanceMonitor.GetInstanceID())
-				if err != nil {
-					log.Errorf("Unable to complete lifecycle action on instance %s", *instance.InstanceId)
-				}
-				if n.delayDeleteSeconds != 0 {
-					n.lastDeleteTimestamp = time.Now()
-					continue
-				}
-			} else {
-				log.Debugf("Instance %s waiting for AWS to start termination lifecycle", *instance.InstanceId)
-			}
+		if err := n.destroyInstanceAttempt(instance); err != nil {
+			log.Warn(err)
 		}
 	}
 

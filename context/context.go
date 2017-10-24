@@ -1,0 +1,35 @@
+package context
+
+import (
+	"github.com/alanbover/deathnode/aws"
+	"github.com/alanbover/deathnode/mesos"
+)
+
+// ApplicationConf stores the application configurations
+type ApplicationConf struct {
+	ConstraintsType          string
+	RecommenderType          string
+	DeathNodeMark            string
+	AutoscalingGroupPrefixes arrayFlags
+	ProtectedFrameworks      arrayFlags
+	ProtectedTasksLabels     arrayFlags
+	DelayDeleteSeconds       int
+}
+
+// ApplicationContext stores the application configurations and both AWS and Mesos connections
+type ApplicationContext struct {
+	Conf      ApplicationConf
+	AwsConn   aws.ClientInterface
+	MesosConn mesos.ClientInterface
+}
+
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	return ""
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}

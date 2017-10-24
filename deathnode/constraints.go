@@ -34,7 +34,7 @@ func (c *protectedConstraint) filter(instanceMonitors []*monitor.InstanceMonitor
 
 	filteredInstanceMonitors := []*monitor.InstanceMonitor{}
 	for _, instanceMonitor := range instanceMonitors {
-		if !mesosMonitor.IsProtected(instanceMonitor.GetIP()) {
+		if !mesosMonitor.IsProtected(instanceMonitor.IP()) {
 			filteredInstanceMonitors = append(filteredInstanceMonitors, instanceMonitor)
 		}
 	}
