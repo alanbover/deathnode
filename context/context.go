@@ -3,6 +3,7 @@ package context
 import (
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/benbjohnson/clock"
 )
 
 // ApplicationConf stores the application configurations
@@ -21,6 +22,7 @@ type ApplicationContext struct {
 	Conf      ApplicationConf
 	AwsConn   aws.ClientInterface
 	MesosConn mesos.ClientInterface
+	Clock     clock.Clock
 }
 
 type arrayFlags []string

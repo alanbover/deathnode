@@ -8,6 +8,7 @@ import (
 	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/deathnode"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/benbjohnson/clock"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ var pollingSeconds int
 
 func main() {
 
-	ctx := &context.ApplicationContext{}
+	ctx := &context.ApplicationContext{Clock: clock.New()}
 
 	initFlags(ctx)
 	enforceFlags(ctx)

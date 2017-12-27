@@ -55,6 +55,11 @@ Resources:
                          "Resource" : "*",
                          "Effect" : "Allow",
                          "Action" : "autoscaling:CompleteLifecycleAction"
+                      },
+                      {
+                         "Resource" : "*",
+                         "Effect" : "Allow",
+                         "Action" : "autoscaling:RecordLifecycleActionHeartbeat"
                       }
                    ]
                 }

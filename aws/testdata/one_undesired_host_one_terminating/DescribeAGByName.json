@@ -15,18 +15,18 @@
             "InstanceId": "i-446a73cf",
             "LaunchConfigurationName": "LaunchConfigurationNameFoo",
             "LifecycleState": "InService",
-            "ProtectedFromScaleIn": false
+            "ProtectedFromScaleIn": true
           },{
             "AvailabilityZone": "eu-west-1a",
             "HealthStatus": "Healthy",
             "InstanceId": "i-ab7ca923",
             "LaunchConfigurationName": "LaunchConfigurationNameFoo",
             "LifecycleState": "InService",
-            "ProtectedFromScaleIn": false
+            "ProtectedFromScaleIn": true
           }],
         "LaunchConfigurationName": "LaunchConfigurationNameFoo",
         "MaxSize": 3,
         "MinSize": 1,
-        "NewInstancesProtectedFromScaleIn": false
+        "NewInstancesProtectedFromScaleIn": true
   }
 ]

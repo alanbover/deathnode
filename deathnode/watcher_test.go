@@ -1,25 +1,27 @@
 package deathnode
 
 import (
+	"fmt"
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
+	"github.com/benbjohnson/clock"
 	"testing"
-	"fmt"
 )
 
 type testCollectionValues struct {
-	awsConn *aws.ConnectionMock
-	mesosConn *mesos.ClientMock
+	awsConn            *aws.ConnectionMock
+	mesosConn          *mesos.ClientMock
 	delayDeleteSeconds int
-	times int
+	times              int
 }
 
 type expectedResult struct {
-	values testCollectionValues
-	numInstancesRemoved int
-	numMarkToBeRemoved int
-	numRemovedInstancesProtection int
+	values                            testCollectionValues
+	numInstancesRemoved               int
+	numMarkToBeRemoved                int
+	numRemovedInstancesProtection     int
+	numRecordLifecycleActionHeartbeat int
 }
 
 func TestWatcher(t *testing.T) {
@@ -43,14 +45,14 @@ func TestWatcher(t *testing.T) {
 						"GetMesosSlaves":     {"default", "default"},
 						"GetMesosTasks":      {"default", "default"},
 					},
-
 				},
 				delayDeleteSeconds: 0,
-				times: 2,
+				times:              2,
 			},
-			numInstancesRemoved: 0,
-			numMarkToBeRemoved: 0,
-			numRemovedInstancesProtection: 0,
+			numInstancesRemoved:               0,
+			numMarkToBeRemoved:                0,
+			numRemovedInstancesProtection:     0,
+			numRecordLifecycleActionHeartbeat: 0,
 		},
 		{
 			values: testCollectionValues{
@@ -70,14 +72,14 @@ func TestWatcher(t *testing.T) {
 						"GetMesosSlaves":     {"default", "default"},
 						"GetMesosTasks":      {"notasks", "notasks"},
 					},
-
 				},
 				delayDeleteSeconds: 0,
-				times: 2,
+				times:              2,
 			},
-			numInstancesRemoved: 0,
-			numMarkToBeRemoved: 1,
-			numRemovedInstancesProtection: 1,
+			numInstancesRemoved:               0,
+			numMarkToBeRemoved:                1,
+			numRemovedInstancesProtection:     1,
+			numRecordLifecycleActionHeartbeat: 0,
 		},
 		{
 			values: testCollectionValues{
@@ -97,14 +99,14 @@ func TestWatcher(t *testing.T) {
 						"GetMesosSlaves":     {"default", "default"},
 						"GetMesosTasks":      {"notasks", "notasks"},
 					},
-
 				},
 				delayDeleteSeconds: 0,
-				times: 2,
+				times:              2,
 			},
-			numInstancesRemoved: 0,
-			numMarkToBeRemoved: 2,
-			numRemovedInstancesProtection: 2,
+			numInstancesRemoved:               0,
+			numMarkToBeRemoved:                2,
+			numRemovedInstancesProtection:     2,
+			numRecordLifecycleActionHeartbeat: 0,
 		},
 		{
 			values: testCollectionValues{
@@ -116,7 +118,7 @@ func TestWatcher(t *testing.T) {
 						},
 						"DescribeInstancesByTag": {"default", "two_undesired_hosts",
 							"two_undesired_hosts"},
-						"DescribeAGByName":       {"default", "two_undesired_hosts",
+						"DescribeAGByName": {"default", "two_undesired_hosts",
 							"two_undesired_hosts_two_terminating"},
 					},
 				},
@@ -126,14 +128,14 @@ func TestWatcher(t *testing.T) {
 						"GetMesosSlaves":     {"default", "default", "default"},
 						"GetMesosTasks":      {"notasks", "notasks", "notasks"},
 					},
-
 				},
 				delayDeleteSeconds: 0,
-				times: 3,
+				times:              3,
 			},
-			numInstancesRemoved: 2,
-			numMarkToBeRemoved: 2,
-			numRemovedInstancesProtection: 2,
+			numInstancesRemoved:               2,
+			numMarkToBeRemoved:                2,
+			numRemovedInstancesProtection:     2,
+			numRecordLifecycleActionHeartbeat: 0,
 		},
 		{
 			values: testCollectionValues{
@@ -143,9 +145,9 @@ func TestWatcher(t *testing.T) {
 							"node1", "node2", "node3",
 							"node1", "node2", "node3",
 						},
-						"DescribeInstancesByTag": { "default", "two_undesired_hosts",
+						"DescribeInstancesByTag": {"default", "two_undesired_hosts",
 							"two_undesired_hosts"},
-						"DescribeAGByName":       {
+						"DescribeAGByName": {
 							"default", "two_undesired_hosts",
 							"two_undesired_hosts_two_terminating"},
 					},
@@ -156,19 +158,19 @@ func TestWatcher(t *testing.T) {
 						"GetMesosSlaves":     {"default", "default", "default"},
 						"GetMesosTasks":      {"notasks", "notasks", "notasks"},
 					},
-
 				},
 				delayDeleteSeconds: 1,
-				times: 3,
+				times:              3,
 			},
-			numInstancesRemoved: 1,
-			numMarkToBeRemoved: 2,
-			numRemovedInstancesProtection: 2,
+			numInstancesRemoved:               1,
+			numMarkToBeRemoved:                2,
+			numRemovedInstancesProtection:     2,
+			numRecordLifecycleActionHeartbeat: 0,
 		},
 	}
 
 	for i, result := range expectedResults {
-		t.Run(fmt.Sprintf("TestWatcher resultValue %s", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("TestWatcher resultValue %v", i), func(t *testing.T) {
 			runWatcher(result.values)
 			requests := result.values.awsConn.Requests
 
@@ -178,11 +180,11 @@ func TestWatcher(t *testing.T) {
 					result.numRemovedInstancesProtection)
 			}
 			if result.numRemovedInstancesProtection == 0 && requests["RemoveASGInstanceProtection"] != nil {
-				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["RemoveASGInstanceProtection"]))
 			}
 			if result.numRemovedInstancesProtection != len(requests["RemoveASGInstanceProtection"]) {
-				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of InstanceProtection removal. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["RemoveASGInstanceProtection"]))
 			}
 
@@ -192,25 +194,40 @@ func TestWatcher(t *testing.T) {
 					result.numRemovedInstancesProtection)
 			}
 			if result.numMarkToBeRemoved == 0 && requests["SetInstanceTag"] != nil {
-				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["SetInstanceTag"]))
 			}
 			if result.numMarkToBeRemoved != len(requests["SetInstanceTag"]) {
-				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of instances marked to be removed. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["SetInstanceTag"]))
 			}
+
 			// Check number of instances removed
 			if result.numInstancesRemoved > 0 && requests["CompleteLifecycleAction"] == nil {
 				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: nil",
 					result.numRemovedInstancesProtection)
 			}
 			if result.numInstancesRemoved == 0 && requests["CompleteLifecycleAction"] != nil {
-				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["CompleteLifecycleAction"]))
 			}
 			if result.numInstancesRemoved != len(requests["CompleteLifecycleAction"]) {
-				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %s",
+				t.Fatalf("Incorrect number of instances removed. Expected: %v, Found: %v",
 					result.numRemovedInstancesProtection, len(requests["CompleteLifecycleAction"]))
+			}
+
+			// Check number of restarted lifecycle heartbeats
+			if result.numRecordLifecycleActionHeartbeat > 0 && requests["RecordLifecycleActionHeartbeat"] == nil {
+				t.Fatalf("Incorrect number of lifecycle heartbeats. Expected: %v, Found: nil",
+					result.numRecordLifecycleActionHeartbeat)
+			}
+			if result.numRecordLifecycleActionHeartbeat == 0 && requests["RecordLifecycleActionHeartbeat"] != nil {
+				t.Fatalf("Incorrect number of lifecycle heartbeats. Expected: %v, Found: %v",
+					result.numRecordLifecycleActionHeartbeat, len(requests["RecordLifecycleActionHeartbeat"]))
+			}
+			if result.numRecordLifecycleActionHeartbeat != len(requests["RecordLifecycleActionHeartbeat"]) {
+				t.Fatalf("Incorrect number of lifecycle heartbeats. Expected: %v, Found: %v",
+					result.numRecordLifecycleActionHeartbeat, len(requests["RecordLifecycleActionHeartbeat"]))
 			}
 		})
 	}
@@ -219,6 +236,7 @@ func TestWatcher(t *testing.T) {
 func newWatcher(testValues testCollectionValues) *Watcher {
 
 	ctx := &context.ApplicationContext{
+		Clock:     clock.New(),
 		AwsConn:   testValues.awsConn,
 		MesosConn: testValues.mesosConn,
 		Conf: context.ApplicationConf{
@@ -239,7 +257,7 @@ func newWatcher(testValues testCollectionValues) *Watcher {
 func runWatcher(testValues testCollectionValues) {
 
 	watcher := newWatcher(testValues)
-	for iter := 0; iter<testValues.times; iter++ {
+	for iter := 0; iter < testValues.times; iter++ {
 		watcher.Run()
 	}
 }

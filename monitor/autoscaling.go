@@ -21,7 +21,8 @@ type AutoscalingGroupMonitor struct {
 	ctx                  *context.ApplicationContext
 }
 
-var lifeCycleTimeout int64 = 3600
+// LifeCycleTimeout sets the time set for LifeCycleHooks timeout
+var LifeCycleTimeout int64 = 3600
 
 // NewAutoscalingServiceMonitor returns an AutoscalingServiceMonitor object
 func NewAutoscalingServiceMonitor(ctx *context.ApplicationContext) *AutoscalingServiceMonitor {
@@ -142,7 +143,7 @@ func (a *AutoscalingServiceMonitor) newAutoscalingGroupMonitor(autoscalingGroupP
 	ok, _ := a.ctx.AwsConn.HasLifeCycleHook(autoscalingGroupName)
 	if !ok {
 		log.Infof("Setting lifecyclehook for autoscaling %s", autoscalingGroupName)
-		err := a.ctx.AwsConn.PutLifeCycleHook(autoscalingGroupName, &lifeCycleTimeout)
+		err := a.ctx.AwsConn.PutLifeCycleHook(autoscalingGroupName, &LifeCycleTimeout)
 		if err != nil {
 			log.Warnf("Error putting lifecyclehook to autoscaling %s: %s",
 				autoscalingGroupName, err)
@@ -269,7 +270,7 @@ func (a *AutoscalingGroupMonitor) getInstances(markedToBeRemoved bool) []*Instan
 
 	instances := []*InstanceMonitor{}
 	for _, instanceMonitor := range a.instanceMonitors {
-		if instanceMonitor.isTagToBeRemoved == markedToBeRemoved {
+		if instanceMonitor.IsMarkedToBeRemoved() == markedToBeRemoved {
 			instances = append(instances, instanceMonitor)
 		}
 	}

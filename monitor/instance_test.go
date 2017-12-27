@@ -3,6 +3,7 @@ package monitor
 import (
 	"github.com/alanbover/deathnode/aws"
 	"github.com/alanbover/deathnode/context"
+	"github.com/benbjohnson/clock"
 	. "github.com/smartystreets/goconvey/convey"
 	"testing"
 )
@@ -20,6 +21,7 @@ func TestNewInstanceMonitor(t *testing.T) {
 			Conf: context.ApplicationConf{
 				DeathNodeMark: "DEATH_NODE_MARK",
 			},
+			Clock: clock.New(),
 		}
 
 		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", false)
@@ -31,7 +33,7 @@ func TestNewInstanceMonitor(t *testing.T) {
 			So(monitor.instanceID, ShouldEqual, "i-249b35ae")
 		})
 		Convey("it shouldn't be marked to be removed", func() {
-			So(monitor.isTagToBeRemoved, ShouldBeFalse)
+			So(monitor.IsMarkedToBeRemoved(), ShouldBeFalse)
 		})
 		Convey("and MarkToBeRemoved is called", func() {
 			monitor.TagToBeRemoved()
@@ -64,11 +66,12 @@ func TestInstanceMarkToBeRemoved(t *testing.T) {
 			Conf: context.ApplicationConf{
 				DeathNodeMark: "DEATH_NODE_MARK",
 			},
+			Clock: clock.New(),
 		}
 
 		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", false)
 		Convey("and isMarkToBeRemoved is called", func() {
-			So(monitor.isTagToBeRemoved, ShouldBeTrue)
+			So(monitor.IsMarkedToBeRemoved(), ShouldBeTrue)
 		})
 	})
 }
@@ -87,6 +90,7 @@ func TestInstanceProtection(t *testing.T) {
 			Conf: context.ApplicationConf{
 				DeathNodeMark: "DEATH_NODE_MARK",
 			},
+			Clock: clock.New(),
 		}
 
 		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", true)
@@ -122,6 +126,7 @@ func TestLifecycleState(t *testing.T) {
 			Conf: context.ApplicationConf{
 				DeathNodeMark: "DEATH_NODE_MARK",
 			},
+			Clock: clock.New(),
 		}
 
 		monitor, _ := newInstanceMonitor(ctx, "autoscalingid", "i-249b35ae", "InService", true)
