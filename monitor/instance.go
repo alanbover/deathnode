@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/alanbover/deathnode/context"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"time"
+	log "github.com/sirupsen/logrus"
+	"strconv"
 )
 
 // LifecycleStateTerminatingWait defines the state of an instance in the autoscalingGroup when it's waiting for
@@ -19,7 +20,7 @@ type InstanceMonitor struct {
 	instanceID          string
 	lifecycleState      string
 	isProtected         bool
-	isTagToBeRemoved    bool
+	tagRemovalTimestamp int64
 	ctx                 *context.ApplicationContext
 }
 
@@ -32,20 +33,30 @@ func newInstanceMonitor(ctx *context.ApplicationContext, autoscalingGroupID, ins
 		return &InstanceMonitor{}, err
 	}
 
+	tagRemovalTimestamp, err := getTagRemovalTimestamp(response.Tags, ctx.Conf.DeathNodeMark)
+	if err != nil {
+		log.Warn("Invalid value found for tag %s on instance %s", ctx.Conf.DeathNodeMark, instanceID)
+	}
+
 	return &InstanceMonitor{
-		autoscalingGroupID: autoscalingGroupID,
-		ipAddress:          *response.PrivateIpAddress,
-		instanceID:         instanceID,
-		isTagToBeRemoved:   isMarkedToBeRemoved(response.Tags, ctx.Conf.DeathNodeMark),
-		lifecycleState:     lifecycleState,
-		isProtected:        isProtected,
-		ctx:                ctx,
+		autoscalingGroupID:  autoscalingGroupID,
+		ipAddress:           *response.PrivateIpAddress,
+		instanceID:          instanceID,
+		lifecycleState:      lifecycleState,
+		isProtected:         isProtected,
+		ctx:                 ctx,
+		tagRemovalTimestamp: tagRemovalTimestamp,
 	}, nil
 }
 
 // IP returns the private IP of the AWS instance
 func (a *InstanceMonitor) IP() string {
 	return a.ipAddress
+}
+
+// TagRemovalTimestamp returns the start timestamp for the lifecycle hook
+func (a *InstanceMonitor) TagRemovalTimestamp() int64 {
+	return a.tagRemovalTimestamp
 }
 
 // LifecycleState returns the lifeCycleState of the instance in the ASG
@@ -82,9 +93,15 @@ func (a *InstanceMonitor) IsProtected() bool {
 // Key: valueOf(DEATH_NODE_TAG_MARK)
 // Value: Current timestamp (epoch)
 func (a *InstanceMonitor) TagToBeRemoved() error {
-	err := a.ctx.AwsConn.SetInstanceTag(a.ctx.Conf.DeathNodeMark, epochAsString(), a.instanceID)
-	a.isTagToBeRemoved = true
+	currentTimestamp := a.ctx.Clock.Now().Unix()
+	err := a.ctx.AwsConn.SetInstanceTag(a.ctx.Conf.DeathNodeMark, fmt.Sprintf("%v", currentTimestamp), a.instanceID)
+	a.tagRemovalTimestamp = currentTimestamp
 	return err
+}
+
+// IsMarkedToBeRemoved is true when the instance has been marked for removal
+func (a *InstanceMonitor) IsMarkedToBeRemoved() bool {
+	return a.tagRemovalTimestamp != 0
 }
 
 func (a *InstanceMonitor) setLifecycleState(lifecycleState string) {
@@ -96,15 +113,15 @@ func (a *InstanceMonitor) setLifecycleState(lifecycleState string) {
 	}
 }
 
-func epochAsString() string {
-	return fmt.Sprintf("%v", time.Now().Unix())
-}
-
-func isMarkedToBeRemoved(tags []*ec2.Tag, deathNodeMark string) bool {
+func getTagRemovalTimestamp(tags []*ec2.Tag, deathNodeMark string) (int64, error) {
 	for _, tag := range tags {
 		if deathNodeMark == *tag.Key {
-			return true
+			timestamp, err := strconv.ParseInt(*tag.Value, 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			return timestamp, nil
 		}
 	}
-	return false
+	return 0, nil
 }

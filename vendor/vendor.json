@@ -159,6 +159,12 @@
 			"revisionTime": "2016-08-10T00:29:32Z"
 		},
 		{
+			"checksumSHA1": "TKmBYGnpk/Ibn5Fl3VE2n9hUO/E=",
+			"path": "github.com/benbjohnson/clock",
+			"revision": "7dc76406b6d3c05b5f71a86293cbcf3c4ea03b19",
+			"revisionTime": "2016-12-15T17:48:38Z"
+		},
+		{
 			"checksumSHA1": "FCeEm2BWZV/n4oTy+SGd/k0Ab5c=",
 			"origin": "github.com/aws/aws-sdk-go/vendor/github.com/go-ini/ini",
 			"path": "github.com/go-ini/ini",

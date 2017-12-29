@@ -19,6 +19,9 @@ type Notebook struct {
 	ctx                 *context.ApplicationContext
 }
 
+// LifeCycleRefreshTimeoutPercentage sets the percentage of LifeCycleTimeout to wait before reset it
+var LifeCycleRefreshTimeoutPercentage = 0.75
+
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
 func NewNotebook(ctx *context.ApplicationContext, autoscalingGroups *monitor.AutoscalingServiceMonitor,
 	mesosMonitor *monitor.MesosMonitor) *Notebook {
@@ -42,7 +45,7 @@ func (n *Notebook) setAgentsInMaintenance(instances []*ec2.Instance) error {
 }
 
 func (n *Notebook) shouldWaitForNextDestroy() bool {
-	return time.Since(n.lastDeleteTimestamp).Seconds() <= float64(n.ctx.Conf.DelayDeleteSeconds)
+	return n.ctx.Clock.Since(n.lastDeleteTimestamp).Seconds() <= float64(n.ctx.Conf.DelayDeleteSeconds)
 }
 
 func (n *Notebook) destroyInstance(instanceMonitor *monitor.InstanceMonitor) error {
@@ -56,12 +59,35 @@ func (n *Notebook) destroyInstance(instanceMonitor *monitor.InstanceMonitor) err
 			return err
 		}
 		if n.ctx.Conf.DelayDeleteSeconds != 0 {
-			n.lastDeleteTimestamp = time.Now()
+			n.lastDeleteTimestamp = n.ctx.Clock.Now()
 		}
 	} else {
 		log.Debugf("Instance %s waiting for AWS to start termination lifecycle", *instanceMonitor.InstanceID())
 	}
 	return nil
+}
+
+func (n *Notebook) resetLifecycle(instanceMonitor *monitor.InstanceMonitor) {
+
+	if instanceMonitor.IsMarkedToBeRemoved() && instanceMonitor.LifecycleState() == monitor.LifecycleStateTerminatingWait {
+		// Check if timeout is close to expire
+		startTimeoutTimestamp := time.Unix(instanceMonitor.TagRemovalTimestamp(), 0)
+		maxSecondsToRefresh := float64(monitor.LifeCycleTimeout) * LifeCycleRefreshTimeoutPercentage
+		if n.ctx.Clock.Since(startTimeoutTimestamp).Seconds() > maxSecondsToRefresh {
+			// Reset the lifecycle timeout for the instance
+			log.Debugf("Refresh lifecycle hook for instance %s", *instanceMonitor.InstanceID())
+			err := n.ctx.AwsConn.RecordLifecycleActionHeartbeat(
+				instanceMonitor.AutoscalingGroupID(), instanceMonitor.InstanceID())
+			if err != nil {
+				log.Errorf("Unable to record lifecycle action on instance %s", *instanceMonitor.InstanceID())
+			}
+			// Tag the instance with the new timestamp
+			err = instanceMonitor.TagToBeRemoved()
+			if err != nil {
+				log.Warnf("Unable to re-tag the instance after record lifecycle on instance %s", *instanceMonitor.InstanceID())
+			}
+		}
+	}
 }
 
 func (n *Notebook) destroyInstanceAttempt(instance *ec2.Instance) error {
@@ -76,10 +102,13 @@ func (n *Notebook) destroyInstanceAttempt(instance *ec2.Instance) error {
 	// If the instance is protected, remove instance protection
 	n.removeInstanceProtection(instanceMonitor)
 
+	// Reset lifecycle hook timeout if needed
+	n.resetLifecycle(instanceMonitor)
+
 	// Check if we need to wait before destroy another instance
 	if n.shouldWaitForNextDestroy() {
 		log.Debugf("Seconds since last destroy: %v. Instance %s will not be destroyed",
-			time.Since(n.lastDeleteTimestamp).Seconds(), *instance.InstanceId)
+			n.ctx.Clock.Since(n.lastDeleteTimestamp).Seconds(), *instance.InstanceId)
 		return nil
 	}
 
@@ -122,5 +151,6 @@ func (n *Notebook) removeInstanceProtection(instance *monitor.InstanceMonitor) e
 	if instance.IsProtected() {
 		return instance.RemoveInstanceProtection()
 	}
+
 	return nil
 }

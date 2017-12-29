@@ -33,6 +33,7 @@ type ClientInterface interface {
 	HasLifeCycleHook(autoscalingGroupName string) (bool, error)
 	PutLifeCycleHook(autoscalingGroupName string, heartbeatTimeout *int64) error
 	CompleteLifecycleAction(autoscalingGroupName, instanceID *string) error
+	RecordLifecycleActionHeartbeat(autoscalingGroupName, instanceID *string) error
 }
 
 // NewClient returns a new aws.client
@@ -54,6 +55,19 @@ func NewClient(accessKey, secretKey, region, iamRole, iamSession string) (*Clien
 		ec2:         ec2.New(session),
 		autoscaling: autoscaling.New(session),
 	}, nil
+}
+
+// RecordLifecycleActionHeartbeat resets the timeout period for a lifecycle hook event
+func (c *Client) RecordLifecycleActionHeartbeat(autoscalingGroupName, instanceID *string) error {
+
+	recordLifeCycleActionHeartbeatInput := &autoscaling.RecordLifecycleActionHeartbeatInput{
+		AutoScalingGroupName: autoscalingGroupName,
+		InstanceId:           instanceID,
+		LifecycleHookName:    aws.String(lifecycleHookName),
+	}
+
+	_, err := c.autoscaling.RecordLifecycleActionHeartbeat(recordLifeCycleActionHeartbeatInput)
+	return err
 }
 
 // CompleteLifecycleAction completes a lifecycle event for an instance pending to be deleted

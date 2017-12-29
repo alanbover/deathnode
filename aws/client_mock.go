@@ -91,6 +91,13 @@ func (c *ConnectionMock) CompleteLifecycleAction(autoscalingGroupName, instanceI
 	return nil
 }
 
+// RecordLifecycleActionHeartbeat is a mock call for testing purposes
+func (c *ConnectionMock) RecordLifecycleActionHeartbeat(autoscalingGroupName, instanceID *string) error {
+
+	c.addRequests("RecordLifecycleActionHeartbeat", []string{*autoscalingGroupName, *instanceID})
+	return nil
+}
+
 func (c *ConnectionMock) addRequests(funcName string, parameters []string) {
 
 	if c.Requests == nil {
