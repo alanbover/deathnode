@@ -19,9 +19,6 @@ type Notebook struct {
 	ctx                 *context.ApplicationContext
 }
 
-// LifeCycleRefreshTimeoutPercentage sets the percentage of LifeCycleTimeout to wait before reset it
-var LifeCycleRefreshTimeoutPercentage = 0.75
-
 // NewNotebook creates a notebook object, which is in charge of monitoring and delete instances marked to be deleted
 func NewNotebook(ctx *context.ApplicationContext, autoscalingGroups *monitor.AutoscalingServiceMonitor,
 	mesosMonitor *monitor.MesosMonitor) *Notebook {
@@ -69,23 +66,14 @@ func (n *Notebook) destroyInstance(instanceMonitor *monitor.InstanceMonitor) err
 
 func (n *Notebook) resetLifecycle(instanceMonitor *monitor.InstanceMonitor) {
 
-	if instanceMonitor.IsMarkedToBeRemoved() && instanceMonitor.LifecycleState() == monitor.LifecycleStateTerminatingWait {
-		// Check if timeout is close to expire
-		startTimeoutTimestamp := time.Unix(instanceMonitor.TagRemovalTimestamp(), 0)
-		maxSecondsToRefresh := float64(monitor.LifeCycleTimeout) * LifeCycleRefreshTimeoutPercentage
-		if n.ctx.Clock.Since(startTimeoutTimestamp).Seconds() > maxSecondsToRefresh {
-			// Reset the lifecycle timeout for the instance
-			log.Debugf("Refresh lifecycle hook for instance %s", *instanceMonitor.InstanceID())
-			err := n.ctx.AwsConn.RecordLifecycleActionHeartbeat(
-				instanceMonitor.AutoscalingGroupID(), instanceMonitor.InstanceID())
-			if err != nil {
-				log.Errorf("Unable to record lifecycle action on instance %s", *instanceMonitor.InstanceID())
-			}
-			// Tag the instance with the new timestamp
-			err = instanceMonitor.TagToBeRemoved()
-			if err != nil {
-				log.Warnf("Unable to re-tag the instance after record lifecycle on instance %s", *instanceMonitor.InstanceID())
-			}
+	// Check if timeout is close to expire
+	startTimeoutTimestamp := time.Unix(instanceMonitor.TagRemovalTimestamp(), 0)
+	maxSecondsToRefresh := float64(monitor.LifeCycleTimeout) * monitor.LifeCycleRefreshTimeoutPercentage
+
+	if instanceMonitor.LifecycleState() == monitor.LifecycleStateTerminatingWait && n.ctx.Clock.Since(startTimeoutTimestamp).Seconds() > maxSecondsToRefresh {
+		err := instanceMonitor.RefreshLifecycleHook()
+		if err != nil {
+			log.Errorf("Unable to reset lifecycle hook for instance %s", *instanceMonitor.InstanceID())
 		}
 	}
 }
