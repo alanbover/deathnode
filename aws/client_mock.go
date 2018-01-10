@@ -16,6 +16,11 @@ type ConnectionMock struct {
 	Requests map[string][][]string
 }
 
+// FlushMock will flush all requests recorded on the mock side
+func (c *ConnectionMock) FlushMock() {
+	c.Requests = map[string][][]string{}
+}
+
 // DescribeInstanceByID is a mock call for testing purposes
 func (c *ConnectionMock) DescribeInstanceByID(instanceID string) (*ec2.Instance, error) {
 

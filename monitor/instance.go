@@ -104,12 +104,33 @@ func (a *InstanceMonitor) IsMarkedToBeRemoved() bool {
 	return a.tagRemovalTimestamp != 0
 }
 
+// RefreshLifecycleHook resets the timeout for the lifecycle hook and re-tag the instance with a new epoch
+func (a *InstanceMonitor) RefreshLifecycleHook() error {
+
+	// Reset the lifecycle timeout for the instance
+	log.Debugf("Refresh lifecycle hook for instance %s", a.InstanceID())
+	err := a.ctx.AwsConn.RecordLifecycleActionHeartbeat(
+		a.AutoscalingGroupID(), a.InstanceID())
+	if err != nil {
+		log.Errorf("Unable to record lifecycle action on instance %s", *a.InstanceID())
+		return err
+	}
+	// Tag the instance with the new timestamp
+	err = a.TagToBeRemoved()
+	if err != nil {
+		log.Warnf("Unable to re-tag the instance after record lifecycle on instance %s", a.InstanceID())
+		return err
+	}
+	return nil
+}
+
 func (a *InstanceMonitor) setLifecycleState(lifecycleState string) {
 	a.lifecycleState = lifecycleState
 
 	if lifecycleState == LifecycleStateTerminatingWait && a.isProtected {
 		// A non-controled instance went to Terminating:Wait, probably because it went unhealthy
-		a.TagToBeRemoved()
+		log.Debugf("setLifecycleState called for instance %s", a.InstanceID())
+		a.RefreshLifecycleHook()
 	}
 }
 

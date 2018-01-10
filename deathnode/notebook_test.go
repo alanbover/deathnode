@@ -35,17 +35,28 @@ func TestRecordLifecycleActionHeartbeat(t *testing.T) {
 			},
 		}
 		notebook := newNotebook(awsConn, mesosConn, 0, clockMock)
+		Convey("it should have recorded lifecycleAction and reset tag for the already terminating instance", func() {
+			clockMock.Set(time.Unix(1190997840, 0))
+			notebook.DestroyInstancesAttempt()
+			clockMock.Set(time.Unix(1190995200, 0))
+			So(awsConn.Requests["RecordLifecycleActionHeartbeat"], ShouldHaveLength, 1)
+			So(awsConn.Requests["SetInstanceTag"], ShouldHaveLength, 1)
+		})
 		Convey("it should do nothing if no lifecycle to be refreshed", func() {
+			awsConn.FlushMock()
 			clockMock.Set(time.Unix(1190997840, 0))
 			notebook.DestroyInstancesAttempt()
 			clockMock.Set(time.Unix(1190995200, 0))
 			So(awsConn.Requests["RecordLifecycleActionHeartbeat"], ShouldBeNil)
+			So(awsConn.Requests["SetInstanceTag"], ShouldBeNil)
 		})
 		Convey("it should refresh lifecycle if time is close to be expired", func() {
+			awsConn.FlushMock()
 			clockMock.Set(time.Unix(1190997960, 0))
 			notebook.DestroyInstancesAttempt()
 			clockMock.Set(time.Unix(1190995200, 0))
-			So(awsConn.Requests["RecordLifecycleActionHeartbeat"], ShouldNotBeNil)
+			So(awsConn.Requests["RecordLifecycleActionHeartbeat"], ShouldHaveLength, 1)
+			So(awsConn.Requests["SetInstanceTag"], ShouldHaveLength, 1)
 		})
 	})
 }
