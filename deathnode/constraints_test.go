@@ -22,7 +22,7 @@ func TestConstraints(t *testing.T) {
 		mesosConn := &mesos.ClientMock{
 			Records: map[string]*[]string{},
 		}
-		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn)
+		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn, []string{"frameworkName1"})
 
 		Convey("it should raise an issue if the constrant doesn't exist", func() {
 			_, err := newConstraint("noExistingConstraint")
@@ -52,7 +52,7 @@ func TestProtectedConstraint(t *testing.T) {
 				"GetMesosTasks":      {"default"},
 			},
 		}
-		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn)
+		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn, []string{"frameworkName1"})
 		mesosMonitor.Refresh()
 
 		constraint, _ := newConstraint("protectedConstraint")
@@ -63,7 +63,67 @@ func TestProtectedConstraint(t *testing.T) {
 	})
 }
 
-func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos.ClientMock) (*monitor.AutoscalingGroupMonitor, *monitor.MesosMonitor) {
+func TestFilterFrameworkContraint(t *testing.T) {
+
+	Convey("When creating a filterFrameworkContraint", t, func() {
+		awsConn := &aws.ConnectionMock{
+			Records: map[string]*[]string{
+				"DescribeInstanceById": {"node1", "node2", "node3"},
+				"DescribeAGByName":     {"default"},
+			},
+		}
+		mesosConn := &mesos.ClientMock{
+			Records: map[string]*[]string{
+				"GetMesosFrameworks": {"default"},
+				"GetMesosSlaves":     {"default"},
+				"GetMesosTasks":      {"default"},
+			},
+		}
+		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn, []string{"frameworkName1", "frameworkName2"})
+		mesosMonitor.Refresh()
+
+		Convey("it should filter instances with tasks running those frameworks", func() {
+			constraint, _ := newConstraint("filterFrameworkConstraint=frameworkName2")
+			instances := constraint.filter(instanceMonitor.GetInstances(), mesosMonitor)
+			So(len(instances), ShouldEqual, 2)
+
+			constraint, _ = newConstraint("filterFrameworkConstraint=frameworkName1")
+			instances = constraint.filter(instanceMonitor.GetInstances(), mesosMonitor)
+			So(len(instances), ShouldEqual, 1)
+		})
+	})
+}
+
+func TestTaskNameRegexpConstraint(t *testing.T) {
+
+	Convey("When creating a filterFrameworkContraint", t, func() {
+		awsConn := &aws.ConnectionMock{
+			Records: map[string]*[]string{
+				"DescribeInstanceById": {"node1", "node2", "node3"},
+				"DescribeAGByName":     {"default"},
+			},
+		}
+		mesosConn := &mesos.ClientMock{
+			Records: map[string]*[]string{
+				"GetMesosFrameworks": {"default"},
+				"GetMesosSlaves":     {"default"},
+				"GetMesosTasks":      {"default"},
+			},
+		}
+		instanceMonitor, mesosMonitor := prepareMonitorsForConstraints(awsConn, mesosConn, []string{"frameworkName1", "frameworkName2"})
+		mesosMonitor.Refresh()
+
+		Convey("it should filter instances with tasks running those frameworks", func() {
+			constraint, _ := newConstraint("taskNameRegexpConstraint=.*ask1")
+			instances := constraint.filter(instanceMonitor.GetInstances(), mesosMonitor)
+			So(len(instances), ShouldEqual, 2)
+		})
+	})
+}
+
+func prepareMonitorsForConstraints(
+	awsConn *aws.ConnectionMock, mesosConn *mesos.ClientMock, protectedFrameworks []string) (
+	*monitor.AutoscalingGroupMonitor, *monitor.MesosMonitor) {
 
 	ctx := &context.ApplicationContext{
 		AwsConn:   awsConn,
@@ -71,7 +131,7 @@ func prepareMonitorsForConstraints(awsConn *aws.ConnectionMock, mesosConn *mesos
 		Conf: context.ApplicationConf{
 			DeathNodeMark:            "DEATH_NODE_MARK",
 			AutoscalingGroupPrefixes: []string{"some-Autoscaling-Group"},
-			ProtectedFrameworks:      []string{"frameworkName1"},
+			ProtectedFrameworks:      protectedFrameworks,
 		},
 	}
 

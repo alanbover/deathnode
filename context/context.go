@@ -8,13 +8,14 @@ import (
 
 // ApplicationConf stores the application configurations
 type ApplicationConf struct {
-	ConstraintsType          string
+	ConstraintsType          arrayFlags
 	RecommenderType          string
 	DeathNodeMark            string
 	AutoscalingGroupPrefixes arrayFlags
 	ProtectedFrameworks      arrayFlags
 	ProtectedTasksLabels     arrayFlags
 	DelayDeleteSeconds       int
+	ResetLifecycle           bool
 }
 
 // ApplicationContext stores the application configurations and both AWS and Mesos connections

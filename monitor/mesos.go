@@ -7,6 +7,7 @@ import (
 	"github.com/alanbover/deathnode/context"
 	"github.com/alanbover/deathnode/mesos"
 	log "github.com/sirupsen/logrus"
+	"regexp"
 	"strings"
 )
 
@@ -141,6 +142,33 @@ func (m *MesosMonitor) hasProtectedLabel(task mesos.Task) bool {
 		log.Debugf("Protected task %s is running on node %s, preventing Deathnode for killing it",
 			task.Name, task.SlaveID)
 		return true
+	}
+	return false
+}
+
+// HasTaskNameMatchRegexp returns true if the host has any taskName that match a certain regexp
+func (m *MesosMonitor) HasTaskNameMatchRegexp(ipAddress, taskRegexp string) bool {
+
+	slaveID := m.mesosCache.slaves[ipAddress].ID
+	slaveTasks := m.mesosCache.tasks[slaveID]
+	for _, task := range slaveTasks {
+		matched, _ := regexp.MatchString(taskRegexp, task.Name)
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
+// HasFrameworks returns true if the host has any task from any of the frameworks
+func (m *MesosMonitor) HasFrameworks(ipAddress, framework string) bool {
+
+	slaveID := m.mesosCache.slaves[ipAddress].ID
+	slaveTasks := m.mesosCache.tasks[slaveID]
+	for _, task := range slaveTasks {
+		if framework == m.mesosCache.frameworks[task.FrameworkID].Name {
+			return true
+		}
 	}
 	return false
 }

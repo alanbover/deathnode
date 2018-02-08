@@ -65,12 +65,13 @@ func initFlags(context *context.ApplicationContext) {
 	flag.Var(&context.Conf.ProtectedFrameworks, "protectedFrameworks", "The mesos frameworks to wait for kill the node.")
 	flag.Var(&context.Conf.ProtectedTasksLabels, "protectedTaskLabels", "The labels used for protected tasks.")
 
-	flag.StringVar(
-		&context.Conf.ConstraintsType, "constraintsType", "noContraint", "The constrainst implementation to use.")
+	flag.Var(
+		&context.Conf.ConstraintsType, "constraintsType", "The constrainst implementation to use.")
 	flag.StringVar(
 		&context.Conf.RecommenderType, "recommenderType", "firstAvailableAgent", "The recommender implementation to use.")
 	flag.StringVar(
 		&context.Conf.DeathNodeMark, "deathNodeMark", "DEATH_NODE_MARK", "The tag to apply for instances to be deleted.")
+	flag.BoolVar(&context.Conf.ResetLifecycle, "resetLifecycle", false, "Reset lifecycle when it's close to expire.")
 
 	flag.IntVar(&pollingSeconds, "polling", 60, "Seconds between executions.")
 	flag.IntVar(&context.Conf.DelayDeleteSeconds, "delayDelete", 0, "Time to wait between kill executions (in seconds).")
@@ -91,6 +92,11 @@ func enforceFlags(context *context.ApplicationContext) {
 	}
 
 	if len(context.Conf.ProtectedFrameworks) < 1 {
+		flag.Usage()
+		log.Fatal("at least one registeredFramework flag is required")
+	}
+
+	if len(context.Conf.ConstraintsType) < 1 {
 		flag.Usage()
 		log.Fatal("at least one registeredFramework flag is required")
 	}
