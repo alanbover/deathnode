@@ -91,7 +91,9 @@ func (n *Notebook) destroyInstanceAttempt(instance *ec2.Instance) error {
 	n.removeInstanceProtection(instanceMonitor)
 
 	// Reset lifecycle hook timeout if needed
-	n.resetLifecycle(instanceMonitor)
+	if n.ctx.Conf.ResetLifecycle {
+		n.resetLifecycle(instanceMonitor)
+	}
 
 	// Check if we need to wait before destroy another instance
 	if n.shouldWaitForNextDestroy() {

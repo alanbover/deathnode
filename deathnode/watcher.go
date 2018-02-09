@@ -13,7 +13,7 @@ type Watcher struct {
 	notebook                  *Notebook
 	mesosMonitor              *monitor.MesosMonitor
 	autoscalingServiceMonitor *monitor.AutoscalingServiceMonitor
-	constraints               constraint
+	constraints               []constraint
 	recommender               recommender
 }
 
@@ -23,10 +23,15 @@ func NewWatcher(ctx *context.ApplicationContext) *Watcher {
 	autoscalingServiceMonitor := monitor.NewAutoscalingServiceMonitor(ctx)
 	mesosMonitor := monitor.NewMesosMonitor(ctx)
 
-	contrainsts, err := newConstraint(ctx.Conf.ConstraintsType)
-	if err != nil {
-		log.Fatal(err)
+	constraints := []constraint{}
+	for _, constraint := range ctx.Conf.ConstraintsType {
+		newConstraint, err := newConstraint(constraint)
+		if err != nil {
+			log.Fatal(err)
+		}
+		constraints = append(constraints, newConstraint)
 	}
+
 	recommender, err := newRecommender(ctx.Conf.RecommenderType)
 	if err != nil {
 		log.Fatal(err)
@@ -35,7 +40,7 @@ func NewWatcher(ctx *context.ApplicationContext) *Watcher {
 	return &Watcher{
 		notebook:                  NewNotebook(ctx, autoscalingServiceMonitor, mesosMonitor),
 		mesosMonitor:              mesosMonitor,
-		constraints:               contrainsts,
+		constraints:               constraints,
 		recommender:               recommender,
 		autoscalingServiceMonitor: autoscalingServiceMonitor,
 	}
@@ -50,7 +55,10 @@ func (y *Watcher) TagInstancesToBeRemoved(autoscalingMonitor *monitor.Autoscalin
 
 	for removedInstances := 0; removedInstances < numUndesiredInstances; removedInstances++ {
 
-		allowedInstances := y.constraints.filter(autoscalingMonitor.GetInstances(), y.mesosMonitor)
+		allowedInstances := autoscalingMonitor.GetInstances()
+		for _, constraint := range y.constraints {
+			allowedInstances = constraint.filter(allowedInstances, y.mesosMonitor)
+		}
 		bestInstance := y.recommender.find(allowedInstances)
 
 		log.Debugf("Tagging instance %s for removal", *bestInstance.InstanceID())

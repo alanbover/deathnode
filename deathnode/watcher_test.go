@@ -245,7 +245,7 @@ func newWatcher(testValues testCollectionValues) *Watcher {
 			ProtectedFrameworks:      []string{"frameworkName1"},
 			ProtectedTasksLabels:     []string{"DEATHNODE_PROTECTED"},
 			DelayDeleteSeconds:       testValues.delayDeleteSeconds,
-			ConstraintsType:          "noContraint",
+			ConstraintsType:          []string{"noContraint", "noContraint"},
 			RecommenderType:          "smallestInstanceId",
 		},
 	}
