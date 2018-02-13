@@ -146,43 +146,41 @@ func (m *MesosMonitor) hasProtectedLabel(task mesos.Task) bool {
 	return false
 }
 
-// HasTaskNameMatchRegexp returns true if the host has any taskName that match a certain regexp
-func (m *MesosMonitor) HasTaskNameMatchRegexp(ipAddress, taskRegexp string) bool {
+type taskEvaluate func(*MesosMonitor, mesos.Task) bool
+
+func (m *MesosMonitor) agentTaskEvaluation(ipAddress string, fn taskEvaluate) bool {
 
 	slaveID := m.mesosCache.slaves[ipAddress].ID
 	slaveTasks := m.mesosCache.tasks[slaveID]
 	for _, task := range slaveTasks {
-		matched, _ := regexp.MatchString(taskRegexp, task.Name)
-		if matched {
+		if fn(m, task) {
 			return true
 		}
 	}
 	return false
+}
+
+// HasTaskNameMatchRegexp returns true if the host has any taskName that match a certain regexp
+func (m *MesosMonitor) HasTaskNameMatchRegexp(ipAddress, taskRegexp string) bool {
+
+	return m.agentTaskEvaluation(ipAddress, func(m *MesosMonitor, task mesos.Task) bool {
+		matched, _ := regexp.MatchString(taskRegexp, task.Name)
+		return matched
+	})
 }
 
 // HasFrameworks returns true if the host has any task from any of the frameworks
 func (m *MesosMonitor) HasFrameworks(ipAddress, framework string) bool {
 
-	slaveID := m.mesosCache.slaves[ipAddress].ID
-	slaveTasks := m.mesosCache.tasks[slaveID]
-	for _, task := range slaveTasks {
-		if framework == m.mesosCache.frameworks[task.FrameworkID].Name {
-			return true
-		}
-	}
-	return false
+	return m.agentTaskEvaluation(ipAddress, func(m *MesosMonitor, task mesos.Task) bool {
+		return framework == m.mesosCache.frameworks[task.FrameworkID].Name
+	})
 }
 
 // IsProtected returns true if the mesos agent has any protected condition.
 func (m *MesosMonitor) IsProtected(ipAddress string) bool {
 
-	slaveID := m.mesosCache.slaves[ipAddress].ID
-	slaveTasks := m.mesosCache.tasks[slaveID]
-	for _, task := range slaveTasks {
-		if m.hasProtectedLabel(task) || m.isFromProtectedFramework(task) {
-			return true
-		}
-	}
-
-	return false
+	return m.agentTaskEvaluation(ipAddress, func(m *MesosMonitor, task mesos.Task) bool {
+		return m.hasProtectedLabel(task) || m.isFromProtectedFramework(task)
+	})
 }

@@ -48,6 +48,38 @@ func TestIsProtected(t *testing.T) {
 	})
 }
 
+func TestHasFrameworks(t *testing.T) {
+
+	Convey("when calling HasFrameworks", t, func() {
+		Convey("when checking protected labels it should return", func() {
+			monitor := createTestMesosMonitor("frameworkName1", "")
+			monitor.Refresh()
+			Convey("true if a node have tasks running from the selected framework", func() {
+				So(monitor.HasFrameworks("10.0.0.2", "frameworkName1"), ShouldBeTrue)
+			})
+			Convey("false if a node doesn't have tasks from the selected framework", func() {
+				So(monitor.HasFrameworks("10.0.0.4", "frameworkName1"), ShouldBeFalse)
+			})
+		})
+	})
+}
+
+func TestHasTaskNameMatchRegexp(t *testing.T) {
+
+	Convey("when calling HasTaskNameMatchRegexp", t, func() {
+		Convey("when checking task name match regexp it should return", func() {
+			monitor := createTestMesosMonitor("", "")
+			monitor.Refresh()
+			Convey("true if a node have tasks running matching the regexp", func() {
+				So(monitor.HasTaskNameMatchRegexp("10.0.0.2", "tas.*"), ShouldBeTrue)
+			})
+			Convey("false if a node doesn't have tasks running matching the regexp", func() {
+				So(monitor.HasTaskNameMatchRegexp("10.0.0.2", "nonMatchingRegexp.*"), ShouldBeFalse)
+			})
+		})
+	})
+}
+
 func TestSetMesosAgentsInMaintenance(t *testing.T) {
 	Convey("When generating the payload for a maintenance call", t, func() {
 		mesosConn := &mesos.ClientMock{
